@@ -1,7 +1,7 @@
-// IRTachometer.ino
+// wheelTachometer.ino
 // Trevor Stanhope
 // December 1st, 2012
-// An infra-red tachometer.
+// An infra-red tachometer for wheel speed.
 
 /* Global Variables */
 int receiverPin = 13; // red
