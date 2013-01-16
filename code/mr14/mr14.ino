@@ -1,7 +1,7 @@
 // mr14.ino
 // Trevor Stanhope
 // Jan 9, 2013
-// 
+// Full Project for MR14.
 
 /* Dependent Libraries*/
 #include <SoftwareSerial.h> // needed for RFID module.
@@ -35,7 +35,7 @@ void setup() {
   pinMode(relayIgnition, OUTPUT);
 }
 
-// Loop Actions
+// Main Loop
 void loop() {
   rfidSerial.write(READ); // Send the command to RFID, please refer to RFID manual
   if (rfidSerial.available()) {
@@ -58,7 +58,7 @@ void loop() {
 }
 
 // Test RFID Key Card
-boolean testKey() {
+bool testKey() {
   int TMP[KEYLENGTH];
   for (int i = 0; i < KEYLENGTH; i++) {
     TMP[i] = mySerial.read();
@@ -93,6 +93,7 @@ int startIgnition() {
   ignitionVal = digitalRead(startPin);  // read input value
 }
 
+// Start Tone
 startTone() {
   // notes in the start tone
   int melody[] = {NOTE_C4, NOTE_G3,NOTE_G3, NOTE_A3, NOTE_G3,0, NOTE_B3, NOTE_C4};
@@ -112,6 +113,7 @@ startTone() {
   delay(1000)
 }
 
+// Wait Tone
 waitTone() {
   // notes in the repeat tone
   int repeat[] = {NOTE_G5, NOTE_G5};
@@ -133,7 +135,39 @@ waitTone() {
   delay(1000);
 }
 
+// Reverse Tone
+reverseTone() {
+  int reverse[] = {NOTE_G6};
+  int reverseDurations[] = {4};
+  // Plays Start Melody.
+  for (int thisNote = 0; thisNote < 2; thisNote++) {
+    // to calculate the note duration, take one second divided by the note type.
+    //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
+    int noteDuration = 1000/reverseDurations[thisNote];
+    tone(speakerPin, reverse[thisNote],noteDuration);
+
+    // to distinguish the notes, set a minimum time between them.
+    // the note's duration + 30% seems to work well:
+    int pauseBetweenNotes = noteDuration * 1.30;
+    delay(pauseBetweenNotes);
+    // stop the tone playing:
+    noTone(speakerPin);
+  }
+  delay(1000);
+}
+
+bool isReversing() {
+  if (digitalRead(reversePin) == HIGH); {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
 on() {
   dataLogger();
-  
+  while (isReversing) {
+    reverseTone();
+  }
 }

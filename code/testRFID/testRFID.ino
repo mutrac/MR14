@@ -4,17 +4,20 @@
 // Tests 13.56 MHz RFID module
 
 /* Dependent Libraries*/
-#include <SoftwareSerial.h> // needed for RFID module
 
 /* Global Objects */
-int txPin = 8;
-int rxPin = 9;
-SoftwareSerial rfidSerial(txPin, rxPin); // for RFID serial communication
-int READ = 0x02; // HEX command to set RFID Module to READ-MODE
+// Input/Output
+int txPin = 2;
+int rxPin = 3;
+
+// For the RFID Module
+SoftwareSerial rfidSerial(txPin, rxPin); // so the RFID can be read
 int KEY[] = {139, 151, 226, 117}; // the valid key
 int KEYLENGTH = 4;
 int baudrate = 9600;
 int interval = 1000;
+
+// For STANDBY Mode (Valid RFID)
 
 /* Functions*/
 // Setup
@@ -41,18 +44,18 @@ void loop() {
 }
 
 // Test RFID Key Card
-bool testKey() {
-    int TMP[KEYLENGTH];
-    for (int i = 0; i < KEYLENGTH; i++) {
-      TMP[i] = mySerial.read();
+boolean testKey() {
+  int TMP[KEYLENGTH];
+  for (int i = 0; i < KEYLENGTH; i++) {
+    TMP[i] = mySerial.read();
+  }
+  for (int j = 0; j < KEYLENGTH; j++) {
+    if (KEY[j] == TMP[j]) {
+      continue;
     }
-    for (int j = 0; j < KEYLENGTH; j++) {
-      if (KEY[j] == TMP[j]) {
-        continue;
-      }
-      else {
-        return false;
-      }
+    else {
+      return false;
     }
-    return true;
+  }
+  return true;
 }
