@@ -1,70 +1,109 @@
 // mr14.ino
 // Trevor Stanhope
 // Jan 9, 2013
-// Full Project for MR14.
+// Full Project for MR14
 
-/* Dependent Libraries*/
+/******************************************************/
+/* Header braries */
 #include <SoftwareSerial.h> // needed for RFID module.
 #include "pitches.h" // needed for start tone.
-#include "config.h" // needed for pin setup
+#include "config.h" // needed for pin setup and global values
+#include "keyring.h"
 
+/******************************************************/
 /* Global Objects */
-// For RFID Module
-SoftwareSerial rfidSerial(txPin, rxPin); // so the RFID can be read
-int KEY[] = {139, 151, 226, 117}; // the valid key
-int KEYLENGTH = 4;
-int baudrate = 9600;
-int interval = 1000;
+SoftwareSerial rfidSerial(rfidTXPin, rfidRXPin); // so the RFID can be read
+int key[] = {139, 151, 226, 117};
 
-// For STANDBY Mode
-int ignitionVal = LOW; // Tractor starts off of course
-
-// For LCD
-
-// For ON Mode
-
-/* Functions*/
-// Setup
+/******************************************************/
+/* Primary Functions */
 void setup() {
-  Serial.begin(baudrate);
-  rfidSerial.begin(baudrate);
-  
-  // Initialize Pins
-  pinMode(startPin, INPUT);
-  pinMode(relayStandby, OUTPUT);
-  pinMode(relayIgnition, OUTPUT);
+    Serial.begin(BAUD);
+    rfidSerial.begin(BAUD);
+    pinMode(ignitionButtonPin, INPUT);
+    pinMode(standbyRelayPin, OUTPUT);
+    pinMode(ignitionRelayPin, OUTPUT);
+    pinMode(killSwitchPin, INPUT);
+    digitalWrite(standbyRelayPin, HIGH);
+    digitalWrite(ignitionRelayPin, HIGH);
 }
 
-// Main Loop
 void loop() {
-  rfidSerial.write(READ); // Send the command to RFID, please refer to RFID manual
-  if (rfidSerial.available()) {
-    if (testKey()) {
-      Serial.println("SYSTEM ACTIVATED");
-      startTone();
-      digitalWrite(relayStandby, HIGH); // START STANDBY MODE
-      waitStart();
-      on();
-    }
-    else {
-      Serial.println("BAD KEY");
-      digitalWrite(relayStandby, LOW);
-    }
+  scan();
+}
+
+/******************************************************/
+/* State Functions */
+// sting state
+void off() {
+  Serial.println("OFF");
+  digitalWrite(standbyRelayPin, HIGH);
+  digitalWrite(ignitionRelayPin, HIGH);
+}
+
+// Scan continously for key
+void scan() {
+  Serial.println("SCANNING");
+  rfidSerial.write(READ);
+  if (rfidSerial.available() && testKey()) {
+    standby();
   }
   else {
-    Serial.println("SWIPE KEY CARD");
+    off();
   }
-  delay(interval); // check for card every on interval
+  delay(INTERVAL); // scan every second
 }
 
-// Test RFID Key Card
-bool testKey() {
-  int TMP[KEYLENGTH];
+// Standby for ignition
+void standby() {
+  while (killSwitch() == false) {
+    Serial.println("ON");
+    while (1 == 1) { // starter if ignition engaged
+      digitalWrite(standbyRelayPin, LOW);
+      digitalWrite(ignitionRelayPin, HIGH);
+      ignition();
+      on();
+    }
+  }
+  off(); // kill if kill switch is on, wait for new card
+}
+
+// Ignition phase 
+void ignition() {
+  Serial.println("IGNITION");
+  digitalWrite(standbyRelayPin, LOW);
+  digitalWrite(ignitionRelayPin, LOW);
+}
+
+// Main operating mode
+void on() {
+  while (killSwitch() == false) {
+    Serial.println("ON");
+    digitalWrite(standbyRelayPin, LOW);
+    digitalWrite(ignitionRelayPin, HIGH);
+  }
+  off();
+}
+
+/******************************************************/
+/* Auxiliary Functions */
+// Kill Switch for tractor, will terminate ALL
+boolean killSwitch() {
+  if (1 == 1) { // if kill switch is not engaged
+    return false;
+  }
+  return true;
+}
+
+// Tests if RFID key is valid
+boolean testKey() {
+  rfidSerial.write(READ); // Send the command to RFID, please refer to RFID manual
+  int temp[KEYLENGTH]; // length of key is 4;
   for (int i = 0; i < KEYLENGTH; i++) {
-    TMP[i] = mySerial.read();
+    temp[i] = rfidSerial.read();
   }
   for (int j = 0; j < KEYLENGTH; j++) {
-    if (KEY[j] == TMP[j]) {
+    if (key[j] == temp[j]) {
       continue;
     }
     else {
@@ -72,102 +111,4 @@ bool testKey() {
     }
   }
   return true;
-}
-
-// Wait for Ignition
-waitStart() {
-  while (startIgnition() == LOW) {
-    digitalWrite(relayIgnition, LOW); // kill ignition on button release
-    waitTone();
-  } 
-  else {
-    digitalWrite(relayIgnition, HIGH);  // turn relay ON
-    while (500 > engineTachometer()) {
-      continue;
-    }
-  }
-}
-
-// Calls to Ignition Button
-int startIgnition() {
-  ignitionVal = digitalRead(startPin);  // read input value
-}
-
-// Start Tone
-startTone() {
-  // notes in the start tone
-  int melody[] = {NOTE_C4, NOTE_G3,NOTE_G3, NOTE_A3, NOTE_G3,0, NOTE_B3, NOTE_C4};
-  int melodyDurations[] = {4,8,8,4,4,4,4,4};  // note durations: 4 = quarter note, 8 = eighth note, etc...
-  // Plays Start Melody.
-  for (int thisNote = 0; thisNote < 8; thisNote++) {
-    // to calculate the note duration, take one second divided by the note type.
-    //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
-    int noteDuration = 1000/melodyDurations[thisNote];
-    tone(speakerPin, melody[thisNote],noteDuration);
-    // to distinguish the notes, set a minimum time between them.
-    int pauseBetweenNotes = noteDuration * 1.30;
-    delay(pauseBetweenNotes);
-    // stop the tone playing:
-    noTone(speakerPin);
-  }
-  delay(1000)
-}
-
-// Wait Tone
-waitTone() {
-  // notes in the repeat tone
-  int repeat[] = {NOTE_G5, NOTE_G5};
-  int repeatDurations[] = {4, 4};
-  // Plays Start Melody.
-  for (int thisNote = 0; thisNote < 2; thisNote++) {
-    // to calculate the note duration, take one second divided by the note type.
-    //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
-    int noteDuration = 1000/repeatDurations[thisNote];
-    tone(speakerPin, repeat[thisNote],noteDuration);
-
-    // to distinguish the notes, set a minimum time between them.
-    // the note's duration + 30% seems to work well:
-    int pauseBetweenNotes = noteDuration * 1.30;
-    delay(pauseBetweenNotes);
-    // stop the tone playing:
-    noTone(speakerPin);
-  }
-  delay(1000);
-}
-
-// Reverse Tone
-reverseTone() {
-  int reverse[] = {NOTE_G6};
-  int reverseDurations[] = {4};
-  // Plays Start Melody.
-  for (int thisNote = 0; thisNote < 2; thisNote++) {
-    // to calculate the note duration, take one second divided by the note type.
-    //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
-    int noteDuration = 1000/reverseDurations[thisNote];
-    tone(speakerPin, reverse[thisNote],noteDuration);
-
-    // to distinguish the notes, set a minimum time between them.
-    // the note's duration + 30% seems to work well:
-    int pauseBetweenNotes = noteDuration * 1.30;
-    delay(pauseBetweenNotes);
-    // stop the tone playing:
-    noTone(speakerPin);
-  }
-  delay(1000);
-}
-
-bool isReversing() {
-  if (digitalRead(reversePin) == HIGH); {
-    return true;
-  }
-  else {
-    return false;
-  }
-}
-
-on() {
-  dataLogger();
-  while (isReversing) {
-    reverseTone();
-  }
 }

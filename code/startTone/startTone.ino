@@ -5,6 +5,7 @@
 
 /* Dependent Libraries */
 #include "pitches.h"
+int speakerPin = 7;
 
 /* Global Objects */
 // notes in the start melody and repeat tone
@@ -12,7 +13,7 @@ int melody[] = {NOTE_C4, NOTE_G3,NOTE_G3, NOTE_A3, NOTE_G3,0, NOTE_B3, NOTE_C4};
 int repeat[] = {NOTE_G5, NOTE_G5};
 
 // note durations: 4 = quarter note, 8 = eighth note, etc...
-int melodyDurations[] = {4,8,8,4,4,4,4,4 };
+int melodyDurations[] = {4,88,4,4,4,4,4 };
 int repeatDurations[] = {4, 4};
 
 /* Functions */
@@ -32,7 +33,7 @@ void setup() {
     int pauseBetweenNotes = noteDuration * 1.30;
     delay(pauseBetweenNotes);
     // stop the tone playing:
-    noTone(8);
+    noTone(speakerPin);
   }
   delay(1000);
 }

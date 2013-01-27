@@ -1,4 +1,4 @@
-// startEngine.ino
+// startEngine.ino        moveServo.write(360); // dependent on line width
 // Trevor Stanhope
 // December 16th, 2012
 // Start engine (ignition only).
@@ -25,8 +25,8 @@ void setup() {
 void loop() {
     startVal = digitalRead(startPin);  // read input value
     if (startVal == HIGH) {
-        digitalWrite(relayPin, startVal);  // turn relay ON
+        digitalWrite(relayPin, HIGH);  // turn relay ON
     } else {
-        digitalWrite(relayPin, startVal);  // turn relay OFF
+        digitalWrite(relayPin, LOW);  // turn relay OFF
     }
 }

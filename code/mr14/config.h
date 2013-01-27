@@ -1,15 +1,14 @@
-/* Public Constants */
-#define LCD1 0 
-#define LCD2 1;
-#define txPin 2; // RFID tx
-#define rxPin 3; // RFID rx
-#define startPin 4; // pin for the Start Engine Button
-#define relayArray1 5 // pin for the STANDBY mode
-#define relayArray2 6; // pin for relay to engine start
-#define speakerPin 7; // System Speaker
-#define pin8 8; // Engine Tach
-#define pin9 9; // Wheel Tach
-#define pin10 10; // Fuel Flow
-#define pin11 11; // Ballast
-#define pin12 12; // Ballast 2
-#define pin13 13; // SD
+/* CONFIG FILE FOR MR14 */
+// PINS
+#define killSwitchPin 4
+#define ignitionButtonPin 7 // pin for the Start Engine Button
+#define standbyRelayPin 5 // pin for the STANDBY mode
+#define ignitionRelayPin 6 // pin for relay to engine start
+#define rfidTXPin 8 // RFID tx
+#define rfidRXPin 9 // RFID rx
+
+// VALUES
+#define KEYLENGTH 4
+#define BAUD 9600
+#define INTERVAL 1000
+#define READ 0x02

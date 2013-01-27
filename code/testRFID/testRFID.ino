@@ -4,11 +4,13 @@
 // Tests 13.56 MHz RFID module
 
 /* Dependent Libraries*/
+#include <SoftwareSerial.h>
 
 /* Global Objects */
 // Input/Output
 int txPin = 2;
 int rxPin = 3;
+int READ = 0x02;
 
 // For the RFID Module
 SoftwareSerial rfidSerial(txPin, rxPin); // so the RFID can be read
@@ -47,7 +49,7 @@ void loop() {
 boolean testKey() {
   int TMP[KEYLENGTH];
   for (int i = 0; i < KEYLENGTH; i++) {
-    TMP[i] = mySerial.read();
+    TMP[i] = rfidSerial.read();
   }
   for (int j = 0; j < KEYLENGTH; j++) {
     if (KEY[j] == TMP[j]) {
@@ -59,3 +61,4 @@ boolean testKey() {
   }
   return true;
 }
+
