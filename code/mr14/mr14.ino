@@ -8,7 +8,6 @@
 #include <SoftwareSerial.h> // needed for RFID module.
 #include "pitches.h" // needed for start tone.
 #include "config.h" // needed for pin setup and global values
-#include "keyring.h"
 
 /******************************************************/
 /* Global Objects */
@@ -18,12 +17,16 @@ int key[] = {139, 151, 226, 117};
 /******************************************************/
 /* Primary Functions */
 void setup() {
-    Serial.begin(BAUD);
-    rfidSerial.begin(BAUD);
+    // Set Pins
     pinMode(ignitionButtonPin, INPUT);
     pinMode(standbyRelayPin, OUTPUT);
     pinMode(ignitionRelayPin, OUTPUT);
     pinMode(killSwitchPin, INPUT);
+    pinMode(fuelGaugePin, INPUT);
+    // Initialize Serials
+    Serial.begin(BAUD);
+    rfidSerial.begin(BAUD);
+    // Initialize Relays
     digitalWrite(standbyRelayPin, HIGH);
     digitalWrite(ignitionRelayPin, HIGH);
 }
@@ -57,10 +60,10 @@ void scan() {
 // Standby for ignition
 void standby() {
   while (killSwitch() == false) {
-    Serial.println("ON");
-    while (1 == 1) { // starter if ignition engaged
-      digitalWrite(standbyRelayPin, LOW);
-      digitalWrite(ignitionRelayPin, HIGH);
+    Serial.println("STANDBY");
+    digitalWrite(standbyRelayPin, LOW);
+    digitalWrite(ignitionRelayPin, HIGH);
+    if (ignitionButton() == true) { // activate starter if ignition engaged
       ignition();
       on();
     }
@@ -77,22 +80,33 @@ void ignition() {
 
 // Main operating mode
 void on() {
+  Serial.println("ON");
+  digitalWrite(standbyRelayPin, LOW);
+  digitalWrite(ignitionRelayPin, HIGH);
   while (killSwitch() == false) {
-    Serial.println("ON");
-    digitalWrite(standbyRelayPin, LOW);
-    digitalWrite(ignitionRelayPin, HIGH);
+    getFuelRate();
   }
   off();
 }
 
 /******************************************************/
-/* Auxiliary Functions */
-// Kill Switch for tractor, will terminate ALL
+/* Auxiliary Functions (Action Functions) */
+// Get Kill Switch state
 boolean killSwitch() {
   if (1 == 1) { // if kill switch is not engaged
     return false;
   }
   return true;
+}
+
+// Get Ignition Button state
+boolean ignitionButton() {
+  if (1 == 1) { // if ignition button is pressed
+    return true;
+  }
+  else {
+    return false;
+  }
 }
 
 // Tests if RFID key is valid
@@ -111,4 +125,12 @@ boolean testKey() {
     }
   }
   return true;
+}
+
+// Get Fuel Gauge Rate in L/h
+float getFuelRate() {
+    float flow = 0;
+    Serial.println("FUEL RATE");
+    Serial.println(flow);
+    return flow;
 }
