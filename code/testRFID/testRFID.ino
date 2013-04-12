@@ -8,8 +8,8 @@
 
 /* Global Objects */
 // Input/Output
-int txPin = 2;
-int rxPin = 3;
+int txPin = 7;
+int rxPin = 6 ;
 int READ = 0x02;
 
 // For the RFID Module
@@ -32,6 +32,7 @@ void setup() {
 void loop() {
   rfidSerial.write(READ); // Send the command to RFID, please refer to RFID manual
   if (rfidSerial.available()) {
+    Serial.println("CARD DETECTED");
     if (testKey()) {
       Serial.println("SYSTEM ACTIVATED");
     }
@@ -50,6 +51,7 @@ boolean testKey() {
   int TMP[KEYLENGTH];
   for (int i = 0; i < KEYLENGTH; i++) {
     TMP[i] = rfidSerial.read();
+    Serial.println(TMP[i]);
   }
   for (int j = 0; j < KEYLENGTH; j++) {
     if (KEY[j] == TMP[j]) {

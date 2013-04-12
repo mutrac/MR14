@@ -10,7 +10,7 @@ switch to (startPin) AND (10K ohm to Ground)
 
 /* Dependent Libraries */
 /* Global Variables */
-int startPin = 2; // pin for the Start Engine Button
+int startPin = 4; // pin for the Start Engine Button
 int relayPin = 3; // pin for relay to engine start
 int startVal = LOW; // val for engine ignition state
 
