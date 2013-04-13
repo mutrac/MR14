@@ -1,4 +1,4 @@
-// displayLCD.ino
+// testLCD.ino
 // Trevor Stanhope
 // Jan 29, 2013
 // Display Text on 16x2 LCD

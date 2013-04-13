@@ -1,4 +1,4 @@
-// mr14.ino
+// MR14
 // Trevor Stanhope
 // Jan 9, 2013
 // Full Project for MR14
