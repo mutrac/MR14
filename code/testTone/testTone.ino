@@ -1,19 +1,19 @@
-// startTone.ino
-// Trevor Stanhope
-// December 16th, 2012
-// Tractor ON tone (pre-ignition only).
+/*
+  testTone.ino
+  Trevor Stanhope
+  December 16th, 2012
+*/
 
 /* Dependent Libraries */
 #include "pitches.h"
 int speakerPin = 7;
 
 /* Global Objects */
-// notes in the start melody and repeat tone
-int melody[] = {NOTE_C4, NOTE_G3,NOTE_G3, NOTE_A3, NOTE_G3,0, NOTE_B3, NOTE_C4};
+int melody[] = {NOTE_C4, NOTE_G3, NOTE_G3, NOTE_A3, NOTE_G3,0, NOTE_B3, NOTE_C4};
 int repeat[] = {NOTE_G5, NOTE_G5};
 
 // note durations: 4 = quarter note, 8 = eighth note, etc...
-int melodyDurations[] = {4,88,4,4,4,4,4 };
+int melodyDurations[] = {4,8,8,4,4,4,4,4 };
 int repeatDurations[] = {4, 4};
 
 /* Functions */
@@ -24,7 +24,7 @@ void setup() {
 
     // to calculate the note duration, take one second 
     // divided by the note type.
-    //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
+    // e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
     int noteDuration = 1000/melodyDurations[thisNote];
     tone(8, melody[thisNote],noteDuration);
 

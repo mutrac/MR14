@@ -34,7 +34,22 @@ void loop() {
     lcd.setCursor(0,i); // print on each line
     lcd.print("Test");
     delay(1000);
-    lcd.clear();
-    delay(1000);
   }
+  lcd.clear();
+  delay(1000);
+  lcd.setCursor(0,0);
+  lcd.print("Test");
+  lcd.setCursor(0,1);
+  lcd.print("Test");
+  lcd.setCursor(0,2);
+  lcd.print("Test");
+  lcd.setCursor(0,3);
+  lcd.print("Test");
+  delay(1000);
+  lcd.clear();
+  for (int i = 0; i < 20; i++) {
+    lcd.print("Test");
+    delay(250);
+  }
+  lcd.clear();
 }
