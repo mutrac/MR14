@@ -4,8 +4,6 @@
 // Tests 13.56 MHz RFID module
 
 /* --- Headers --- */
-#define TX_PIN 15
-#define RX_PIN 14
 #define KEYLENGTH 4
 #define BAUDRATE 9600
 #define INTERVAL 1000

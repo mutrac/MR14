@@ -1,9 +1,12 @@
 /*
   MR14 BETA
-  Trevor Stanhope
-  Beta Project for MR14
+  Organization: MuTrac (McGill ASABE Tractor Pull Team), McGill University
+  Author: Trevor Stanhope
+  Date: 2013-05-04
+  Summary: Beta Project for MR14, NO BALLAST OR STEERING
 */
 
+/*&^%$#@! MAIN !@#$%^&*/
 /* --- Libraries --- */
 #include <SoftwareSerial.h> // needed for RFID module.
 #include <Wire.h> 
@@ -11,84 +14,143 @@
 #include <DallasTemperature.h>
 #include <OneWire.h>
 #include "config.h" // needed for pin setup and global values
+#include "pitches.h"
 
 /* --- Declarations --- */
-LiquidCrystal_I2C lcd(I2C_PORT, WIDTH, HEIGHT);  
-OneWire oneWire(TEMP_PIN);
+LiquidCrystal_I2C lcd(LCD_I2C_PORT, LCD_WIDTH, LCD_HEIGHT);  
+OneWire oneWire(SENSOR_TEMP_PIN);
 DallasTemperature sensors(&oneWire);
-int key[] = {139, 151, 226, 117};
-int killVal = LOW;
-int startVal = LOW;
-volatile unsigned int iterator1 = 0;
-volatile unsigned int iterator2 = 0;
-volatile unsigned int iterator3 = 0;
-int flow;
-char temp[128];
-char fuel[128];
-char wrpm[128];
-char erpm[128];
-char buffer[16];
 
+// Tractor condition and actions booleans
+int KILL_HITCH = LOW; // Dashboard kill switch state
+int KILL_BUTTON = LOW; // Seat kill switch state
+int KILL_SEAT = LOW; // Load kill switch state
+int LOCK_BRAKE = LOW; // CVT Guard kill switch state
+int LOCK_CVT = LOW; // Engine kill switch state
+int START = LOW; // Engine ignition button state
+int BALLAST = 0;
+int STEERING = 0;
+
+// Sensor readings
+volatile unsigned int FuelRPM = 0;
+volatile unsigned int EngineRPM = 0;
+volatile unsigned int WheelRPM = 0;
+int flow = 0;
+
+// Character buffers
+char TempBuffer[128];
+char FuelBuffer[128];
+char WheelBuffer[128];
+char EngineBuffer[128];
+char temperature[16];
+
+// Valid RFID Keys
+int antoine[] = {139, 151, 226, 117};
+int trevor[] = {10, 227, 165, 221};
 
 /* --- Setup --- */
+// Tractor initialization actions
 void setup() {
-  // Interfaces
+  
+  // Initialize Control Panel
   Serial.begin(BAUD); // System
   Serial1.begin(BAUD); // RFID
-  sensors.begin();
-  pinMode(IGNITION_PIN, INPUT); // a.k.a.start button pin
+  pinMode(IGNITION_PIN, INPUT);
+  pinMode(STEERING_PIN, INPUT);
+  pinMode(BALLAST_PIN, INPUT);
+  
+  // Initialize Relays in OFF state (OFF = HIGH)
   pinMode(RELAY1_PIN, OUTPUT);
   pinMode(RELAY2_PIN, OUTPUT);
-  pinMode(KILL_PIN, INPUT);
-  pinMode(FUEL_PIN, INPUT);
-  
-  // I/O
+  pinMode(RELAY3_PIN, OUTPUT);
   digitalWrite(RELAY1_PIN, HIGH);
   digitalWrite(RELAY2_PIN, HIGH);
-  attachInterrupt(0, pulses, RISING); // attach fuel rate interrupt
-  attachInterrupt(0, sparks, RISING); // attach fuel rate interrupt
-  attachInterrupt(0, rotations, RISING); // attach fuel rate interrupt
+  digitalWrite(RELAY3_PIN, HIGH);
+  
+  // Initialize Kill Switches
+  pinMode(KILL_BUTTON_PIN, INPUT);
+  pinMode(KILL_SEAT_PIN, INPUT);
+  pinMode(KILL_HITCH_PIN, INPUT);
+  
+  // Initialize Lock Switches
+  pinMode(LOCK_BRAKE_PIN, INPUT);
+  pinMode(LOCK_CVT_PIN, INPUT);
+  
+  // Initialize Sensors
+  sensors.begin();
+  pinMode(SENSOR_FUEL_PIN, INPUT);
+  pinMode(SENSOR_ENGINE_PIN, INPUT);
+  pinMode(SENSOR_WHEEL_PIN, INPUT);
+  attachInterrupt(0, fuel, RISING); // attach fuel rate interrupt
+  attachInterrupt(0, engine, RISING); // attach engine tachometer interrupt
+  attachInterrupt(0, wheel, RISING); // attach wheel tachometer interrupt
 
-  // Initialize
+  // Display Boot Message
   lcd.init();
   lcd.backlight();
+  lcd.print("BOOTING");
+  delay(SHORT);
+  lcd.clear();
   lcd.setCursor(0,0);
   lcd.print("MR14");
   lcd.setCursor(0,1);
   lcd.print("MCGILL UNIVERSITY");
   lcd.setCursor(0,2);
-  lcd.print("BIORESOURCE");
-  delay(LONGER);
+  lcd.print("BIORESOURCE ENG");
+  delay(LONG);
   lcd.clear();
   lcd.setCursor(0,1);
   lcd.print("READ OWNER MANUAL");
   lcd.setCursor(0,2);
   lcd.print("BEFORE OPERATION");
-  delay(LONGER);
+  delay(LONG);
   lcd.clear();
 }
 
 /* --- Loop --- */
 void loop() {
-  scan();
+  on();
   off();
   delay(MEDIUM);
 }
+
+
+
+/*&^%$#@! STATES !@#$%^&*/
+/* 
+  Operation states for the MR14
   
-/* --- Scan --- */
-// Scan continously for key
-void scan() {
-  while (killSwitch()) {
+  Functions:
+  on()
+  standby()
+  ignition()
+  run()
+  off()
+  
+*/
+
+/* --- On --- */
+// LOOP() --> ON()
+// Tractor is on and scans continously for key.
+void on() {
+  
+  // Display ON message
+  lcd.clear();
+  lcd.print("ON");
+  
+  // Run Loop
+  while (kill()) {
+    
+    // Blink the prompt for RFID key
     lcd.clear();
     delay(SHORT);
     lcd.print("SWIPE KEY CARD");
+    
+    // Read serial
     Serial1.write(0x02);
     delay(SHORT);
     if (Serial1.available()) {
       if (testKey()) {
-        lcd.clear();
-        lcd.print("KEY AUTHENTICATED");
-        delay(MEDIUM); // time for display
         standby();
       }
       else {
@@ -97,92 +159,180 @@ void scan() {
         delay(SHORT);
       }
     }
+    break;
   }
 }
 
 /* --- Standby --- */
-// STANDY mode
+// ON() && TESTKEY() && KILL() --> STANDY()
 void standby() {
+  
+  // Display STANDY message
   lcd.clear();
   lcd.print("STANDBY");
-  while (killSwitch()) {
-    digitalWrite(RELAY1_PIN, LOW);
-    digitalWrite(RELAY2_PIN, HIGH);
-    if (startButton()) { // activate starter if start engaged
-      ignition();
-      run();
-    }
+  
+  // Enable 'Position 2' Relays
+  digitalWrite(RELAY1_PIN, LOW);
+  digitalWrite(RELAY2_PIN, LOW);
+  digitalWrite(RELAY3_PIN, HIGH);
+
+  // Run Loop
+  while (kill() && lock()) {
+      if (start()) { // activate ignition if start button engaged
+        ignition();
+        run();
+      }
   }
-  off(); // turn off if kill switch is on, wait for new card
 }
 
 /* --- Ignition --- */
-// IGNITION mode
+// STANDBY() && START() && KILL() && LOCK() --> IGNITION()
 void ignition() {
+  
+  // Display IGNITION message
   lcd.clear();
   lcd.print("IGNITION");
-  while (startButton()) {
+  
+  // Enable 'Position 3' Relays
+  while (start()) {
     digitalWrite(RELAY1_PIN, LOW);
     digitalWrite(RELAY2_PIN, LOW);
+    digitalWrite(RELAY3_PIN, LOW);
   }
 }
 
 /* --- Run --- */
-// RUN mode
+// STANDBY() && START() && KILL() && LOCK() --> RUN()
 void run() {
-  lcd.clear();
-  lcd.print("ENGINE STARTED");
+  
+  // Engage 'Position 2' Relays
   digitalWrite(RELAY1_PIN, LOW);
-  digitalWrite(RELAY2_PIN, HIGH);
+  digitalWrite(RELAY2_PIN, LOW);
+  digitalWrite(RELAY3_PIN, HIGH);
+  
+  // Display RUNNING message
+  lcd.clear();
+  lcd.print("RUNNING");
   delay(MEDIUM);
   lcd.clear();
-  while (killSwitch()) {
+  
+  // Tractor is now running
+  while (kill()) {
     noInterrupts();
     interrupts();
     sensors.requestTemperatures();
-    dtostrf(sensors.getTempCByIndex(0), 4, 2, buffer);
+    dtostrf(sensors.getTempCByIndex(0), 4, 2, temperature);
     delay(SHORTER); // pulses per 300ms = L/hour
     lcd.setCursor(0,0);
-    sprintf(fuel, "FUEL (L/H):   %d    ", iterator1);
-    sprintf(temp, "TEMP (C):     %s  ", buffer);
-    sprintf(erpm, "ENGINE (RPM): %d    ", iterator2);
-    sprintf(wrpm, "WHEEP (RPM):  %d    ", iterator3);
+    sprintf(FuelBuffer, "FUEL (L/H):   %d    ", FuelRPM);
+    sprintf(TempBuffer, "TEMP (C):     %s  ", temperature);
+    sprintf(EngineBuffer, "ENGINE (RPM): %d    ", EngineRPM);
+    sprintf(WheelBuffer, "WHEEL (RPM):  %d    ", WheelRPM);
     lcd.setCursor(0,0); 
-    lcd.print(fuel);
+    lcd.print(FuelBuffer);
     lcd.setCursor(0,1);
-    lcd.print(temp);
+    lcd.print(TempBuffer);
     lcd.setCursor(0,2);
-    lcd.print(erpm);
+    lcd.print(EngineBuffer);
     lcd.setCursor(20,1);
-    lcd.print(wrpm);
-    iterator1 = 0;
-    iterator2 = 0;
-    iterator3 = 0;
+    lcd.print(WheelBuffer);
+    FuelRPM = 0;
+    EngineRPM = 0;
+    WheelRPM = 0;
   }
 }
 
 /* --- Off --- */
-// OFF state, tractor is 
+// LOOP() --> OFF()
 void off() {
+  
+  // Display OFF message
   lcd.clear();
+  lcd.print("OFF");
+
+  // Disable all relays
   digitalWrite(RELAY1_PIN, HIGH);
   digitalWrite(RELAY2_PIN, HIGH);
+  digitalWrite(RELAY3_PIN, HIGH);
 }
 
-/* --- Kill Switch --- */
-// Get killswitch states
-boolean killSwitch() {
-  if (digitalRead(KILL1_PIN) && digitalRead(KILL2_PIN) && digitalRead(KILL3_PIN)) { // if killswitches is not engaged
-    return true;
-  }
-  else {
+
+
+
+
+/*&^%$#@! FUNCTIONS !@#$%^&*/
+/*
+  Secondary tasks executed by state functions.
+  
+  Functions:
+  kill()
+  lock()
+  testKey()
+  start()
+  fuel()
+  engine()
+  wheel()
+  
+*/
+
+/* --- Kill Switches --- */
+// Tractor will not operate if any of the killswitches are engaged
+boolean kill() {
+  
+  // Get kill switch states
+  KILL_SEAT = digitalRead(KILL_SEAT_PIN);
+  KILL_BUTTON = digitalRead(KILL_BUTTON_PIN);
+  KILL_HITCH = digitalRead(KILL_HITCH_PIN);
+  
+  // Return boolean
+  if (KILL_SEAT) {
+    lcd.clear();
+    lcd.print("DRIVER NOT ON SEAT");
+    delay(SHORT);
     return false;
   }
+  else if (KILL_HITCH) {
+    lcd.clear();
+    lcd.print("HITCH DETACHED");
+    delay(SHORT);
+    return false;
+  }
+  else if (KILL_BUTTON) {
+    lcd.clear();
+    lcd.print("KILL BUTTON PRESSED");
+    delay(SHORT);
+    return false;
+  }
+  else {
+    return true;
+  }
 }
+
+/* --- Lock Switches --- */
+// MR14 will not allow ignition if any of the locks are engaged
+boolean lock() {
+  if (LOCK_BRAKE) {
+    lcd.clear();
+    lcd.print("BRAKE NOT ENGAGED");
+    delay(SHORT);
+    return false;
+  }
+  else if (LOCK_CVT) {
+    lcd.clear();
+    lcd.print("CVT GUARD OFF");
+    delay(SHORT);
+    return false;
+  }
+  else {
+    return true;
+  }
+  
+}
+
 
 /* --- Start Button --- */
 // Get start Button state
-boolean startButton() {
+boolean start() {
   if (digitalRead(IGNITION_PIN)) { // if start button is pressed
     return true;
   }
@@ -192,29 +342,56 @@ boolean startButton() {
 }
 
 /* --- Test Key --- */
+// Tests if RFID key is valid
 boolean testKey() {
   int temp[KEYLENGTH]; // length of key is 4;
   for (int i = 0; i < KEYLENGTH; i++) {
     temp[i] = Serial1.read();
   }
-  for (int j = 0; j < KEYLENGTH; j++) {
-    if (key[j] == temp[j]) { // compare key to valid key
-      continue;
+  if (temp[0] == 139) {
+    for (int j = 0; j < KEYLENGTH; j++) {
+      if (antoine[j] == temp[j]) { // compare key to valid key
+        continue;
+      }
+      else {
+        return false;
+      }
     }
-    else {
-      return false;
-    }
+    lcd.clear();
+    lcd.print("HELLO ANTOINE");
+    delay(MEDIUM);
   }
+  else if (temp[0] == 10) {
+    for (int j = 0; j < KEYLENGTH; j++) {
+      if (trevor[j] == temp[j]) { // compare key to valid key
+        continue;
+      }
+      else {
+        return false;
+      }
+    }
+    lcd.clear();
+    lcd.print("HELLO TREVOR");
+    delay(MEDIUM);
+  }
+  else {
+    return false;
+  }
+  temp[4] = 0;
   return true;
 }
 
-/* --- RPM --- */
-void pulses() { 
-  iterator1++;
+/* --- Fuel --- */
+void fuel() { 
+  FuelRPM++;
 }
-void sparks() {
-  iterator2++;
+
+/* --- Engine --- */
+void engine() {
+  EngineRPM++;
 }
-void rotations() {
-  iterator3++;
+
+/* --- Wheel --- */
+void wheel() {
+  WheelRPM++;
 }
