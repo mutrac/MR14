@@ -115,7 +115,7 @@ void setup() {
   attachInterrupt(2, engine, RISING); // Pin 5
   attachInterrupt(3, wheel, RISING); // Pin 6
   attachInterrupt(4, encoder, CHANGE); // Pin 18
-  attachInterrupt(5, encoder, RISING); // Pin 19
+  //attachInterrupt(5, encoder, RISING); // Pin 19
   noInterrupts(); // start interrupts disabled
 
   // Display boot message, then display startup information.
@@ -543,7 +543,7 @@ void wheel() {
   SENSOR_WHEEL++;
 }
 
-/* --- Steering --- */
+/* --- Encoder --- */
 void encoder() {
   
   // Get the current encoder position and limit if oversteered.

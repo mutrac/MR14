@@ -11,12 +11,15 @@
 /* --- Libraries --- */
 /* --- Declarations --- */
 #define KILL_PIN 22
+#define KILL_POWER 23
 int VAL;
 
 /* --- Setup --- */
 void setup() {
   pinMode(KILL_PIN, INPUT);
-  digitalWrite(KILL_PIN, LOW);
+  pinMode(KILL_POWER, OUTPUT);
+  digitalWrite(KILL_POWER, LOW);
+  digitalWrite(KILL_PIN, HIGH);
   Serial.begin(9600);
 }
 
@@ -25,5 +28,5 @@ void loop() {
   VAL = digitalRead(KILL_PIN);  // read input valuee
   Serial.println(VAL);
   Serial.println("-------------------");
-  delay(1000);
+  delay(100);
 }
