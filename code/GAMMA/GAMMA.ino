@@ -8,9 +8,21 @@
   - DYNAMIC BALLAST
   - NO TEMPERATURE
   - KILLSWITCHES AND LOCKSWITCHES
+  - SCREEN DISPLAYS ENGINE, WHEEL, FUEL AND BALLAST
+  
+  Contents:
+  - Boot
+    - Libraries
+    - Declarations
+    - Setup
+  - Runtime
+    - Loop
+    - States
+    - Functions
+    
 */
 
-/*&^%$#@! MAIN !@#$%^&*/
+/////////////// BOOT ///////////////
 /* --- Libraries --- */
 #include <SoftwareSerial.h> // needed for RFID module.
 #include <Wire.h> 
@@ -19,60 +31,60 @@
 #include "DualVNH5019MotorShield.h"
 
 /* --- Declarations --- */
-
-// Serial Communications
+// Spawn serial ommunication objects.
 LiquidCrystal_I2C lcd(LCD_I2C_PORT, LCD_WIDTH, LCD_HEIGHT); // control object for LCD
 DualVNH5019MotorShield motors; // M1 is steering actuator, M2 is ballast motor
 
-// Switches (Locks, Kills, Triggers and Limits)
+// Create switch booleans (Locks, Kills, Triggers and Limits).
 int KILL_HITCH = LOW;
 int KILL_BUTTON = LOW;
 int KILL_SEAT = LOW;
 int LOCK_LEFTBRAKE = LOW;
 int LOCK_RIGHTBRAKE = LOW;
 int LOCK_CVT = LOW;
-int LIMIT_BALLAST_FAR = LOW;
-int LIMIT_BALLAST_NEAR = LOW;
+int LIMIT_FAR = LOW;
+int LIMIT_NEAR = LOW;
 int IGNITION = LOW;
 
-// Ballast and Steering
-volatile int BALLAST_SPEED = 0;
+// Create ballast and steering values.
+int BALLAST_SPEED = 0;
 volatile int STEERING_POSITION = 0;
 volatile int ACTUATOR_POSITION = 0;
-volatile int MOTOR_POSITION = 0;
-volatile int ACTUATOR_SPEED = 0;
+int ACTUATOR_FAULT = 0;
+int MOTOR_FAULT = 0;
 
-// Sensor Values
+// Create sensor reading values and motor fault booleans.
 volatile unsigned int SENSOR_FUEL = 0;
 volatile unsigned int SENSOR_ENGINE = 0;
 volatile unsigned int SENSOR_WHEEL = 0;
 
-// Character Buffers
+// Create character buffers for LCD.
 char BUFFER_FUEL[128];
 char BUFFER_WHEEL[128];
 char BUFFER_ENGINE[128];
+char BUFFER_BALLAST[128];
 
-// Valid RFID Keys
+// List of valid RFID keys.
 int ANTOINE[] = {139, 151, 226, 117};
 int TREVOR[] = {10, 227, 165, 221};
 
 /* --- Setup --- */
-// Tractor initialization actions
+// Begin MR14 initialization actions.
 void setup() {
   
-  // Initialize Control Panel
+  // Initialize control panel.
   Serial.begin(BAUD); // System
-  Serial1.begin(BAUD); // RFID
+  Serial2.begin(BAUD); // RFID
   pinMode(IGNITION_PIN, INPUT);
   pinMode(BALLAST_SPEED_PIN, INPUT);
   
-  // Initialize Steering
+  // Initialize steering.
   pinMode(STEERING_A_PIN, INPUT);
   pinMode(STEERING_B_PIN, INPUT);
   digitalWrite(STEERING_A_PIN, HIGH); // turn on pullup resistor
   digitalWrite(STEERING_B_PIN, HIGH); // turn on pullup resistor
 
-  // Initialize Relays in OFF state (OFF = HIGH)
+  // Initialize relays in OFF state.
   pinMode(RELAY_1_PIN, OUTPUT);
   pinMode(RELAY_2_PIN, OUTPUT);
   pinMode(RELAY_3_PIN, OUTPUT);
@@ -80,41 +92,33 @@ void setup() {
   digitalWrite(RELAY_2_PIN, HIGH);
   digitalWrite(RELAY_3_PIN, HIGH);
   
-  // Initialize Kill Switches
+  // Initialize kill switches and lock switches.
   pinMode(KILL_BUTTON_PIN, INPUT);
   pinMode(KILL_SEAT_PIN, INPUT);
   pinMode(KILL_HITCH_PIN, INPUT);
-
-  // Initialize Lock Switches
-  pinMode(LOCK_BRAKE_PIN, INPUT);
+  pinMode(LOCK_LEFTBRAKE_PIN, INPUT);
+  pinMode(LOCK_RIGHTBRAKE_PIN, INPUT);
   pinMode(LOCK_CVT_PIN, INPUT);
   
-  // Initialize Sensors
+  // Initialize sensor pins.
   pinMode(SENSOR_FUEL_PIN, INPUT);
   pinMode(SENSOR_ENGINE_PIN, INPUT);
   pinMode(SENSOR_WHEEL_PIN, INPUT);
   
-  // Initialize Steering Actuator
-  pinMode(ACTUATOR_A_PIN, INPUT);
-  pinMode(ACTUATOR_B_PIN, INPUT);
-  pinMode(ACTUATOR_SPEED_PIN, INPUT);
-  pinMode(ACTUATOR_FAULT_PIN, INPUT);
-  
-  // Initialize Ballast Motor  
-  pinMode(MOTOR_A_PIN, INPUT);
-  pinMode(MOTOR_B_PIN, INPUT);
-  pinMode(MOTOR_SPEED_PIN, INPUT);
+  // Initialize motor fault pins.
+  pinMode(ACTUATOR_FAULT_PIN, INPUT); 
   pinMode(MOTOR_FAULT_PIN, INPUT);
   
-  // Attach Interrupts
-  attachInterrupt(0, fuel, RISING);
-  attachInterrupt(1, fuel, RISING);
-  attachInterrupt(2, engine, RISING);
-  attachInterrupt(3, wheel, RISING);
-  attachInterrupt(4, steering, CHANGE);
-  attachInterrupt(5, steering, CHANGE);
+  // Attach interrupt functions to interrupt pins.
+  // attachInterrupt(0, fuel, RISING); // Pin 2
+  attachInterrupt(1, fuel, RISING); // Pin 3
+  attachInterrupt(2, engine, RISING); // Pin 5
+  attachInterrupt(3, wheel, RISING); // Pin 6
+  attachInterrupt(4, encoder, CHANGE); // Pin 18
+  attachInterrupt(5, encoder, RISING); // Pin 19
+  noInterrupts(); // start interrupts disabled
 
-  // Display BOOT Message
+  // Display boot message, then display startup information.
   lcd.init();
   lcd.backlight();
   lcd.print("BOOTING...");
@@ -136,14 +140,20 @@ void setup() {
   lcd.clear();
 }
 
+/////////////// RUNTIME ///////////////
+/*********** LOOP ***********/
 /* --- Loop --- */
 void loop() {
+  
+  // Attempt to enter ON mode.
   on();
+  
+  // Disable all tractor functions then wait for reboot.
   off();
   delay(MEDIUM);
 }
 
-/*&^%$#@! STATES !@#$%^&*/
+/*********** STATES ***********/
 /*
   Operation states for the MR14:
     on()
@@ -158,28 +168,28 @@ void loop() {
 // Tractor is on and scans continously for key.
 void on() {
   
-  // Disable interrupts
+  // Contine to disallow interrupts.
   noInterrupts();
   
-  // Display ON message
+  // Display ON message.
   lcd.clear();
   lcd.print("ON");
   
-  // Run Loop
+  //  While no Kills, contine to prompt for RFID key.
   while (kill()) {
     
-    // Blink the prompt for RFID key
+    // Display prompt message then test RFID serial.
     lcd.clear();
-    delay(SHORT);
     lcd.print("SWIPE KEY CARD");
-    
-    // Read RFID serial
-    Serial1.write(0x02);
     delay(SHORT);
-    if (Serial1.available()) {
+    Serial2.write(0x02);
+    delay(SHORT);
+    if (Serial2.available()) {
+      // If key is good, enter STANDY mode.
       if (testKey()) {
         standby();
       }
+      // Else if key is bad, display error message.
       else {
         lcd.clear();
         lcd.print("INCORRECT KEY");
@@ -193,91 +203,91 @@ void on() {
 // ON() && TESTKEY() && KILL() --> STANDY()
 void standby() {
   
-  // Disable interrupts
+  // Continue to disallow interrupts.
   noInterrupts();
   
-  // Display STANDY message
+  // Enable Regulator and Fuel Solenoid and display STANDY message.
   lcd.clear();
   lcd.print("STANDBY");
-  
-  // Enable 'Position 2' Relays
+  delay(SHORT);
   digitalWrite(RELAY_1_PIN, LOW);
   digitalWrite(RELAY_2_PIN, LOW);
   digitalWrite(RELAY_3_PIN, HIGH);
 
-  // Run Loop
+  // If no Kills or Locks enabled, attempt ignition.
   while (kill() && lock()) {
       if (digitalRead(IGNITION_PIN)) { // activate ignition if start button engaged
         ignition();
         run();
       }
   }
+  
 }
 
 /* --- Ignition --- */
 // STANDBY() && START() && KILL() && LOCK() --> IGNITION()
 void ignition() {
   
-  // Disable interrupts
+  // Disable interrupts and prepare LCD.
   noInterrupts();
-  
-  // Display IGNITION message
   lcd.clear();
-  lcd.print("IGNITION");
   
-  // Enable 'Position 3' Relays
+  // While ignition button is enaged, attempt ignition.
   while (digitalRead(IGNITION_PIN)) {
+    
+    // Enable Starter, disable Fuel Solenoid and display ignition message.
+    lcd.print("IGNITION");
     digitalWrite(RELAY_1_PIN, LOW);
     digitalWrite(RELAY_2_PIN, LOW);
     digitalWrite(RELAY_3_PIN, LOW);
   }
+  
 }
 
 /* --- Run --- */
 // STANDBY() && START() && KILL() && LOCK() --> RUN()
 void run() {
   
-  // Engine Position 2
+  // Enable engine RUN mode and display RUNNING message
   digitalWrite(RELAY_1_PIN, LOW);
   digitalWrite(RELAY_2_PIN, LOW);
   digitalWrite(RELAY_3_PIN, HIGH);
-  
-  // Display RUNNING message
   lcd.clear();
   lcd.print("RUNNING");
   delay(MEDIUM);
   lcd.clear();
   
-  // Tractor is now running
+  // While the engine is running, monitor all sensors and controls. 
   while (kill()) {
     
-    // Disable interrupts
+    // Disable interrupts.
     noInterrupts();
     
-    // Set ballast speed
+    // Get current desired ballast speed and set it.
     ballast();
+    steering();
     
-    // Reset interrupts
+    // Reset interrupt counters, then wait for next interval.
     interrupts();
+    SENSOR_FUEL = 0;
+    SENSOR_ENGINE = 0;
+    SENSOR_WHEEL = 0;
     delay(SHORTER); // pulses per 300ms = L/hour
     
-    // Package readings as character buffers
+    // Package current sensor readings as character buffers, then display them.
     sprintf(BUFFER_FUEL, "FUEL (L/H):   %d    ", SENSOR_FUEL);
     sprintf(BUFFER_ENGINE, "ENGINE (RPM): %d    ", SENSOR_ENGINE);
     sprintf(BUFFER_WHEEL, "WHEEL (RPM):  %d    ", SENSOR_WHEEL);
-    
-    // Display readings
+    sprintf(BUFFER_BALLAST, "BALLAST (RPM):  %d    ", BALLAST_SPEED);
     lcd.setCursor(0,0); 
     lcd.print(BUFFER_FUEL);
     lcd.setCursor(0,1);
     lcd.print(BUFFER_ENGINE);
     lcd.setCursor(0,2);
     lcd.print(BUFFER_WHEEL);
-    
-    // Reset interrupt counters
-    SENSOR_FUEL = 0;
-    SENSOR_ENGINE = 0;
-    SENSOR_WHEEL = 0;
+    lcd.setCursor(20,1);
+    lcd.print(BUFFER_BALLAST);
+
   }
 }
 
@@ -298,17 +308,12 @@ void off() {
   digitalWrite(RELAY_3_PIN, HIGH);
 }
 
-/*&^%$#@! FUNCTIONS !@#$%^&*/
+/*********** FUNCTIONS ***********/
 /*
   Secondary tasks executed by state functions:
     kill()
     lock()
     testKey()
-    start()
-    fuel()
-    engine()
-    wheel()
-    steering()
     ballast()
 */
 
@@ -358,19 +363,29 @@ boolean kill() {
 // MR14 will not allow ignition if any of the locks are engaged
 boolean lock() {
   
+  // get Brake switches
+  LOCK_LEFTBRAKE = digitalRead(LOCK_LEFTBRAKE_PIN);
+  LOCK_LEFTBRAKE = digitalRead(LOCK_LEFTBRAKE_PIN);
+  
   // If brakes are not pressed
   if (LOCK_LEFTBRAKE || LOCK_RIGHTBRAKE) {
     lcd.clear();
+    lcd.setCursor(0,0);
     lcd.print("BRAKES NOT ENGAGED");
     delay(SHORT);
     return false;
   }
   
+  // get CVT state
+  LOCK_CVT = analogRead(LOCK_CVT_PIN);
+  
   // If CVT guard is removed
-  else if (LOCK_CVT) {
+  if (LOCK_CVT > 512) {
     lcd.clear();
+    lcd.setCursor(0,0);
     lcd.print("CVT GUARD OFF");
     delay(SHORT);
+    lcd.clear();
     return false;
   }
   
@@ -380,7 +395,7 @@ boolean lock() {
   }
   
 }
-
+  
 /* --- Test Key --- */
 // Tests if RFID key is valid
 boolean testKey() {
@@ -433,6 +448,86 @@ boolean testKey() {
   return true;
 }
 
+/* --- Ballast --- */
+int ballast() {
+  
+  // Get Ballast control input and well as far/near limit switches.
+  BALLAST_SPEED = analogRead(BALLAST_SPEED_PIN);
+  LIMIT_NEAR = digitalRead(LIMIT_BALLAST_NEAR_PIN);
+  LIMIT_FAR = digitalRead(LIMIT_BALLAST_FAR_PIN);
+  MOTOR_FAULT = digitalRead(MOTOR_FAULT_PIN);
+  
+  // If motor is stable, enable motor.
+  if (!MOTOR_FAULT) {
+    
+    // If limits are not engaged, set the proper motor speed.
+    if (!LIMIT_NEAR || !LIMIT_FAR) {
+      if (BALLAST_SPEED < 575) {
+        motors.setM2Speed(-MOTOR_HIGH); // SPEED -2
+      }
+      else if ((BALLAST_SPEED > 575) && (BALLAST_SPEED < 650)) {
+        motors.setM2Speed(-MOTOR_LOW); // SPEED -1
+      }
+      else if ((BALLAST_SPEED > 650) && (BALLAST_SPEED < 750)) {
+        motors.setM2Speed(0); // SPEED 0
+      }
+      else if ((BALLAST_SPEED > 750) && (BALLAST_SPEED < 825)) {
+        motors.setM2Speed(MOTOR_LOW); // SPEED 1
+      }
+      else if (BALLAST_SPEED > 825) {
+        motors.setM2Speed(MOTOR_HIGH); // SPEED 2
+      }
+      else {
+        motors.setM2Speed(0); // SPEED 0
+      }
+    }
+  }
+  
+  // If motor fault, disable motor.
+  else {
+    motors.setM2Speed(0);
+  }
+}
+
+void steering() {
+  
+  // Get actuator fault reading.
+  ACTUATOR_FAULT = digitalRead(ACTUATOR_FAULT_PIN);
+  
+  // If actuator is stable, enable actuator.
+  if (!ACTUATOR_FAULT) {
+    
+    // Until actuator is left of steering wheel, adjust right.
+    if (ACTUATOR_POSITION < STEERING_POSITION) {
+      motors.setM1Speed(ACTUATOR_MEDIUM);
+      ACTUATOR_POSITION++;
+    }
+    
+    // Until actuator is right of steering wheel, adjust left.
+    else if (ACTUATOR_POSITION > STEERING_POSITION) {
+      motors.setM1Speed(-ACTUATOR_MEDIUM);
+      ACTUATOR_POSITION--;
+    }
+    
+    // Otherwise, disable actuator.
+    else {
+      motors.setM1Speed(0);
+    }
+  }
+  
+  // Otherwise, disable motor;
+  else {
+    motors.setM1Speed(0);
+  }
+}
+
+/*********** INTERRUPTS ***********/
+/*
+    fuel()
+    engine()
+    wheel()
+    encoder()
+*/
 /* --- Fuel --- */
 void fuel() { 
   SENSOR_FUEL++;
@@ -449,79 +544,20 @@ void wheel() {
 }
 
 /* --- Steering --- */
-void steering() {
+void encoder() {
   
-  // Get encoder position
+  // Get the current encoder position and limit if oversteered.
   if (digitalRead(STEERING_A_PIN) == digitalRead(STEERING_B_PIN)) {
     STEERING_POSITION++;
-    if (STEERING_POSITION > 220) {
-      STEERING_POSITION = 220 ; // limit right steer to 440
+    if (STEERING_POSITION > 440) {
+      STEERING_POSITION = 440; // limit right steer to 440
     }
   }
   else {
     STEERING_POSITION--;
-    if (STEERING_POSITION < -220) {
-    STEERING_POSITION = -220; // limit left steer to -440
+    if (STEERING_POSITION < -440) {
+    STEERING_POSITION = -440; // limit left steer to -440
     }
   }
   
-  // If actuator is left of steering wheel
-  while (ACTUATOR_POSITION < STEERING_POSITION) {
-    ACTUATOR_SPEED = abs(STEERING_POSITION - ACTUATOR_POSITION);
-    motors.setM1Speed(ACTUATOR_SPEED);
-    ACTUATOR_POSITION++;
-    delay(1);
-  }
-  motors.setM1Speed(0);
-  
-  // While actuator is right of steering wheel, adjust log-wise
-  while (ACTUATOR_POSITION > STEERING_POSITION) {
-    ACTUATOR_SPEED = abs(STEERING_POSITION - ACTUATOR_POSITION);
-    motors.setM1Speed(-ACTUATOR_SPEED);
-    ACTUATOR_POSITION--;
-    delay(1);
-  }
-  motors.setM1Speed(0);
-  
-}
-
-/* --- Ballast --- */
-void ballast() {
-  
-  // Read Ballast control input
-  BALLAST_SPEED = analogRead(BALLAST_SPEED_PIN);
-  
-  // Read limit states
-  LIMIT_BALLAST_NEAR = digitalRead(LIMIT_BALLAST_NEAR_PIN);
-  LIMIT_BALLAST_FAR = digitalRead(LIMIT_BALLAST_FAR_PIN);
-  
-  // If limit switches not activated
-  if (!LIMIT_BALLAST_NEAR || !LIMIT_BALLAST_FAR) {
-    
-    // SPEED -2
-    if (BALLAST_SPEED < 575) {
-      motors.setM2Speed(-100);
-    }
-    // SPEED -1
-    else if ((BALLAST_SPEED > 575) && (BALLAST_SPEED < 650)) {
-      motors.setM2Speed(-50);
-    }
-    // SPEED 0
-    else if ((BALLAST_SPEED > 650) && (BALLAST_SPEED < 750)) {
-      motors.setM2Speed(0);
-    }
-    // SPEED 1
-    else if ((BALLAST_SPEED > 750) && (BALLAST_SPEED < 825)) {
-      motors.setM2Speed(50);
-    }
-    // SPEED 2
-    else if (BALLST_SPEED > 825) {
-      motors.setM2Speed(100); // no ballast if 
-    }
-  }
-  
-  // If limit switches triggered
-  else {
-    motors.setM2Speed(0); // no ballast if at limit
-  }
 }
