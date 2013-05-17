@@ -28,7 +28,7 @@
 #include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
 #include "config.h" // needed for pin setup and global values
-#include "DualVNH5019MotorShield.h"
+#include <DualVNH5019MotorShield.h>
 
 /* --- Declarations --- */
 // Spawn serial ommunication objects.
@@ -108,15 +108,6 @@ void setup() {
   // Initialize motor fault pins.
   pinMode(ACTUATOR_FAULT_PIN, INPUT); 
   pinMode(MOTOR_FAULT_PIN, INPUT);
-  
-  // Attach interrupt functions to interrupt pins.
-  // attachInterrupt(0, fuel, RISING); // Pin 2
-  attachInterrupt(1, fuel, RISING); // Pin 3
-  attachInterrupt(2, engine, RISING); // Pin 5
-  attachInterrupt(3, wheel, RISING); // Pin 6
-  attachInterrupt(4, encoder, CHANGE); // Pin 18
-  //attachInterrupt(5, encoder, RISING); // Pin 19
-  noInterrupts(); // start interrupts disabled
 
   // Display boot message, then display startup information.
   lcd.init();
@@ -167,10 +158,7 @@ void loop() {
 // LOOP() --> ON()
 // Tractor is on and scans continously for key.
 void on() {
-  
-  // Contine to disallow interrupts.
-  noInterrupts();
-  
+ 
   // Display ON message.
   lcd.clear();
   lcd.print("ON");
@@ -203,9 +191,6 @@ void on() {
 // ON() && TESTKEY() && KILL() --> STANDY()
 void standby() {
   
-  // Continue to disallow interrupts.
-  noInterrupts();
-  
   // Enable Regulator and Fuel Solenoid and display STANDY message.
   lcd.clear();
   lcd.print("STANDBY");
@@ -228,8 +213,7 @@ void standby() {
 // STANDBY() && START() && KILL() && LOCK() --> IGNITION()
 void ignition() {
   
-  // Disable interrupts and prepare LCD.
-  noInterrupts();
+  // Prepare LCD
   lcd.clear();
   
   // While ignition button is enaged, attempt ignition.
@@ -256,6 +240,14 @@ void run() {
   lcd.print("RUNNING");
   delay(MEDIUM);
   lcd.clear();
+
+  // Attach interrupt functions to interrupt pins.
+  attachInterrupt(0, fuel, RISING); // Pin 2
+  attachInterrupt(1, fuel, RISING); // Pin 3
+  attachInterrupt(2, engine, RISING); // Pin 5
+  attachInterrupt(3, wheel, RISING); // Pin 6
+  attachInterrupt(4, encoder, CHANGE); // Pin 18
+  attachInterrupt(5, encoder, RISING); // Pin 19
   
   // While the engine is running, monitor all sensors and controls. 
   while (kill()) {
@@ -320,79 +312,76 @@ void off() {
 /* --- Kill Switches --- */
 // Tractor will not operate if any of the killswitches are engaged
 boolean kill() {
-  
-  // Disable interrupts
-  noInterrupts();
-  
-  // Get kill switch states
-  KILL_SEAT = digitalRead(KILL_SEAT_PIN);
-  KILL_BUTTON = digitalRead(KILL_BUTTON_PIN);
-  KILL_HITCH = digitalRead(KILL_HITCH_PIN);
-  
-  // If driver is off of seat
-  if (KILL_SEAT) {
-    lcd.clear();
-    lcd.print("DRIVER NOT ON SEAT");
-    delay(SHORT);
-    return false;
-  }
-  
-  // If hitch is removed
-  else if (KILL_HITCH) {
-    lcd.clear();
-    lcd.print("HITCH DETACHED");
-    delay(SHORT);
-    return false;
-  }
-  
-  // If Kill button is pressed
-  else if (KILL_BUTTON) {
-    lcd.clear();
-    lcd.print("KILL BUTTON PRESSED");
-    delay(SHORT);
-    return false;
-  }
-  
-  // If all kill switches not engaged
-  else {
-    return true;
-  }
+  return true;
+//  // Get kill switch states
+//  KILL_SEAT = digitalRead(KILL_SEAT_PIN);
+//  KILL_BUTTON = digitalRead(KILL_BUTTON_PIN);
+//  KILL_HITCH = digitalRead(KILL_HITCH_PIN);
+//  
+//  // If driver is off of seat
+//  if (KILL_SEAT) {
+//    lcd.clear();
+//    lcd.print("DRIVER NOT ON SEAT");
+//    delay(SHORT);
+//    return false;
+//  }
+//  
+//  // If hitch is removed
+//  else if (KILL_HITCH) {
+//    lcd.clear();
+//    lcd.print("HITCH DETACHED");
+//    delay(SHORT);
+//    return false;
+//  }
+//  
+//  // If Kill button is pressed
+//  else if (KILL_BUTTON) {
+//    lcd.clear();
+//    lcd.print("KILL BUTTON PRESSED");
+//    delay(SHORT);
+//    return false;
+//  }
+//  
+//  // If all kill switches not engaged
+//  else {
+//    return true;
+//  }
 }
 
 /* --- Lock Switches --- */
 // MR14 will not allow ignition if any of the locks are engaged
 boolean lock() {
-  
-  // get Brake switches
-  LOCK_LEFTBRAKE = digitalRead(LOCK_LEFTBRAKE_PIN);
-  LOCK_LEFTBRAKE = digitalRead(LOCK_LEFTBRAKE_PIN);
-  
-  // If brakes are not pressed
-  if (LOCK_LEFTBRAKE || LOCK_RIGHTBRAKE) {
-    lcd.clear();
-    lcd.setCursor(0,0);
-    lcd.print("BRAKES NOT ENGAGED");
-    delay(SHORT);
-    return false;
-  }
-  
-  // get CVT state
-  LOCK_CVT = analogRead(LOCK_CVT_PIN);
-  
-  // If CVT guard is removed
-  if (LOCK_CVT > 512) {
-    lcd.clear();
-    lcd.setCursor(0,0);
-    lcd.print("CVT GUARD OFF");
-    delay(SHORT);
-    lcd.clear();
-    return false;
-  }
-  
-  // If all locks are proper
-  else {
     return true;
-  }
+//  // get Brake switches
+//  LOCK_LEFTBRAKE = digitalRead(LOCK_LEFTBRAKE_PIN);
+//  LOCK_LEFTBRAKE = digitalRead(LOCK_LEFTBRAKE_PIN);
+//  
+//  // If brakes are not pressed
+//  if (LOCK_LEFTBRAKE || LOCK_RIGHTBRAKE) {
+//    lcd.clear();
+//    lcd.setCursor(0,0);
+//    lcd.print("BRAKES NOT ENGAGED");
+//    delay(SHORT);
+//    return false;
+//  }
+//  
+//  // get CVT state
+//  LOCK_CVT = analogRead(LOCK_CVT_PIN);
+//  
+//  // If CVT guard is removed
+//  if (LOCK_CVT > 512) {
+//    lcd.clear();
+//    lcd.setCursor(0,0);
+//    lcd.print("CVT GUARD OFF");
+//    delay(SHORT);
+//    lcd.clear();
+//    return false;
+//  }
+//  
+//  // If all locks are proper
+//  else {
+//    return true;
+//  }
   
 }
   
@@ -403,7 +392,7 @@ boolean testKey() {
   // Get RFID key
   int temp[KEYLENGTH]; // length of key is 4;
   for (int i = 0; i < KEYLENGTH; i++) {
-    temp[i] = Serial1.read();
+    temp[i] = Serial2.read();
   }
   
   // Antoine's key
