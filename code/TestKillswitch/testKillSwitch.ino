@@ -10,8 +10,8 @@
 
 /* --- Libraries --- */
 /* --- Declarations --- */
-#define KILL_PIN 22
-#define KILL_POWER 23
+#define KILL_POWER 22
+#define KILL_PIN 23
 int VAL;
 
 /* --- Setup --- */

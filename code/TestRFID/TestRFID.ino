@@ -1,31 +1,28 @@
-// testRFID_Uno.ino
+// testRFID_Mega.ino
 // Author: Trevor Stanhope
 // Updated: 2013-04-12
 // Tests 13.56 MHz RFID module
 
 /* --- Headers --- */
-#include <SoftwareSerial.h>
-#define TX_PIN 15
-#define RX_PIN 14
 #define KEYLENGTH 4
 #define BAUDRATE 9600
 #define INTERVAL 1000
 #define READ 0x02
 
 /* --- Declarations --- */
-SoftwareSerial rfid(RX_PIN, TX_PIN); // so the RFID can be read
 int KEY[] = {139, 151, 226, 117}; // the valid key
 
 /* --- Setup --- */
 void setup() {
   Serial.begin(BAUDRATE);
-  rfid.begin(BAUDRATE);
-  rfid.write(READ);
+  Serial2.begin(BAUDRATE);
 }
 
 /* --- Loop --- */
 void loop() {
-  if (rfid.available() > 0) {
+  Serial2.write(READ); // Send the command to RFID, please refer to RFID manual
+  delay(50);
+  if (Serial2.available() > 0) {
     Serial.println("CARD DETECTED");
     if (testKey()) {
       Serial.println("SYSTEM ACTIVATED");
@@ -44,7 +41,7 @@ void loop() {
 boolean testKey() {
   int TMP[KEYLENGTH];
   for (int i = 0; i < KEYLENGTH; i++) {
-    TMP[i] = rfid.read();
+    TMP[i] = Serial2.read();
     Serial.println(TMP[i]);
   }
   for (int j = 0; j < KEYLENGTH; j++) {
@@ -57,5 +54,4 @@ boolean testKey() {
   }
   return true;
 }
-
 

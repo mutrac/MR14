@@ -1,4 +1,4 @@
-// startEngine.ino        moveServo.write(360); // dependent on line width
+// startEngine.ino 
 // Trevor Stanhope
 // December 16th, 2012
 // Start engine (ignition only).

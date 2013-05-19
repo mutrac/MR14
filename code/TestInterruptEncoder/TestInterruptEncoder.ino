@@ -34,6 +34,7 @@ void setup() {
   attachInterrupt(0, doEncoder, CHANGE); // encoder pin on interrupt 0 - pin 2
   Serial.begin (BAUD);
   Serial.println("start"); // a personal quirk
+  interrupts();
 } 
 
 /* --- Loop --- */

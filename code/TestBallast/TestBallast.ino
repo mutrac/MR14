@@ -10,9 +10,12 @@ int LIMIT_FAR = LOW;
 int LIMIT_NEAR = LOW;
 int MOTOR_SPEED = 0;
 int BALLAST_SPEED = 0;
+int BAUD = 9600;
 
 /* --- Setup --- */
 void setup() {
+  Serial.begin(BAUD);
+  Serial.println("STARTING TEST");
   pinMode(BALLAST_SPEED_PIN, INPUT);
   pinMode(LIMIT_NEAR_PIN, INPUT);
   pinMode(LIMIT_FAR_PIN, INPUT);
@@ -20,6 +23,8 @@ void setup() {
 
 /* --- Loop --- */
 void loop() {
+  Serial.println("---------");
+  delay(1000);
   ballast();
 }
 
@@ -36,12 +41,25 @@ void ballast() {
   
   // If limit switches not activated
   if (!LIMIT_NEAR || !LIMIT_FAR) {
-      Serial.print(BALLAST_SPEED);
-      motors.setM2Speed(MOTOR_SPEED); // no ballast if 
+    
+    // Display potentiometer positions
+    Serial.println(BALLAST_SPEED);
+    
+    // Set speed
+    if (BALLAST_SPEED > ) {
+      motors.setM2Speed(MOTOR_SPEED); // no ballast if
+    } 
+    else if (BALLAST_SPEED ) {
+      motors.setM2Speed(-MOTOR_SPEED); // no ballast if ;
+    }
+    else {
+      motors.setM2Speed(0); // no ballast if ;
+    }
   }
   
   // If limit switches triggered
   else {
+    Serial.println("AT LIMIT");
     motors.setM2Speed(0); // no ballast if at limit
   }
 }

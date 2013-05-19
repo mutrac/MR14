@@ -12,8 +12,8 @@
 /* --- Libraries --- */
 
 /* --- Declarations --- */
-#define ENCODER_A_PIN 2
-#define ENCODER_B_PIN 4
+#define ENCODER_A_PIN 18
+#define ENCODER_B_PIN 19
 #define BAUD 9600
 int POSITION = 0;
 int A = LOW;
@@ -27,6 +27,7 @@ void setup() {
   digitalWrite(ENCODER_A_PIN, HIGH); // turn on pullup resistor
   digitalWrite(ENCODER_B_PIN, HIGH); // turn on pullup resistor
   Serial.begin(BAUD);
+  attachInterrupt(4, 
 } 
 
 /* --- Loop --- */

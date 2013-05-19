@@ -10,8 +10,8 @@
 #include "DualVNH5019MotorShield.h"
 
 /* --- Declarations --- */
-#define STEERING_A_PIN  2
-#define STEERING_B_PIN  4
+#define STEERING_A_PIN  18
+#define STEERING_B_PIN  19
 #define LIMIT_LEFT_PIN 32
 #define LIMIT_RIGHT_PIN 34
 #define ACTUATOR_FAULT_PIN 6
@@ -36,9 +36,9 @@ void setup() {
   digitalWrite(STEERING_B_PIN, HIGH); // turn on pullup resistor
 
   // Initialize serials
-  attachInterrupt(0, encoder, CHANGE); // encoder pin on interrupt 0 - pin 2
-  Serial.begin (BAUD);
-  Serial.println("start"); // a personal quirk
+  attachInterrupt(4, encoder, CHANGE); // encoder pin on interrupt 0 - pin 2
+  Serial.begin(BAUD);
+  Serial.println("START"); // a personal quirk
   
   // Attach interrupt.
   attachInterrupt(4, encoder, CHANGE); // Pin 18
@@ -46,7 +46,9 @@ void setup() {
 
 /* --- Loop --- */
 void loop(){
+  Serial.println("----------");
   steering();
+  delay(1000);
 }
 
 /* --- Steering --- */
@@ -79,7 +81,10 @@ void steering() {
   // Otherwise, disable motor;
   else {
     motors.setM1Speed(0);
+    Serial.println("AT LIMIT");
   }
+  
+  Serial.println(ACTUATOR_POSITION);
 }
 
 /* --- Encoder --- */
@@ -98,5 +103,5 @@ void encoder() {
     STEERING_POSITION = -440; // limit left steer to -440
     }
   }
-  
+  Serial.println(STEERING_POSITION);
 }
