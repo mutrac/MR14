@@ -58,9 +58,9 @@ int MOTOR_FAULT = 0;
 volatile unsigned int SENSOR_FUEL = 0;
 volatile unsigned int SENSOR_ENGINE = 0;
 volatile unsigned int SENSOR_WHEEL = 0;
-volatile unsigned float RATE_FUEL = 0;
-volatile unsigned float RATE_ENGINE = 0;
-volatile unsigned float RATE_WHEEL = 0;
+volatile unsigned int RATE_FUEL = 0;
+volatile unsigned int RATE_ENGINE = 0;
+volatile unsigned int RATE_WHEEL = 0;
 // Create character buffers for LCD.
 char BUFFER_FUEL[128];
 char BUFFER_WHEEL[128];
@@ -218,7 +218,7 @@ void ignition() {
   digitalWrite(RELAY_3_PIN, LOW);
   Serial.println("IGNITION");
   // While ignition button is enaged, attempt ignition.
-  while (start() && nokill()) {
+  while (start() && nokill() && nolock()) {
     delay(SHORT);
   }
 }
@@ -241,20 +241,20 @@ void run() {
   // While the engine is running, monitor all sensors and controls. 
   while (nokill()) {
     Serial.println("--------------");
-    // Ballast and steering
+    // Get Ballast and steering
     ballast();
     steering();
     // Reset interrupt counters, then wait for next interval.
     SENSOR_FUEL = 0;
     SENSOR_ENGINE = 0;
     SENSOR_WHEEL = 0;
-    INTERVAL = 0;
+    INTERVAL = 0; // milliseconds/interval
     delay(MEDIUM);
     INTERVAL = INTERVAL + MEDIUM;
     // Calculate rates
-    RATE_FUEL = SENSOR_FUEL * (0.0005 * (3600000 / INTERVAL)); // convert pulses to LPH
-    RATE_ENGINE = SENSOR_ENGINE * (60000 / INTERVAL); // convert pulses to RPM
-    RATE_WHEEL = SENSOR_WHEEL * (60000 / INTERVAL); // converts pulses to RPM
+    RATE_FUEL = (SENSOR_FUEL * 1800) / INTERVAL; // convert pulses to Liters/Hr (1800 L*Hrs/pulse)
+    RATE_ENGINE = (SENSOR_ENGINE * 60000) / INTERVAL; // convert pulses to RPM (60000 millisec/min)
+    RATE_WHEEL = (SENSOR_WHEEL * 60000) / INTERVAL; // converts pulses to RPM (60000 millisec/min)
     // Package sensor readings as character buffers, then display them.
     sprintf(BUFFER_FUEL, "FUEL (L/H):   %d    ", RATE_FUEL);
     sprintf(BUFFER_ENGINE, "ENGINE (RPM): %d    ", RATE_ENGINE);
@@ -303,6 +303,7 @@ boolean nokill() {
   // If driver is off of seat
   if (KILL_SEAT) {
     delay(SHORT);
+    // Re-read to determine if driver is still off of the seat
     if (digitalRead(KILL_SEAT_PIN)) {
       // Engine Position 1
       digitalWrite(RELAY_1_PIN, HIGH);
@@ -340,7 +341,7 @@ boolean nokill() {
     delay(SHORT);
     return false;
   }
-  // If all kill switches not engaged
+  // If all kill switches are not engaged
   else {
     return true;
   }
@@ -387,7 +388,7 @@ boolean start() {
 /* --- Test Key --- */
 // Tests if RFID key is valid
 boolean testKey() {
-  // Reset key
+  // Reset temporary key.
   for (int i = 0; i < KEYLENGTH; i++) {
     KEY[i] = 0;
   }
@@ -395,7 +396,7 @@ boolean testKey() {
   for (int i = 0; i < KEYLENGTH; i++) {
     KEY[i] = Serial2.read();
   }
-  // Antoine's key
+  // Test if Antoine's key.
   if (KEY[0] == 139) {
     for (int j = 0; j < KEYLENGTH; j++) {
       if (ANTOINE[j] == KEY[j]) { // compare key to valid key
@@ -408,7 +409,7 @@ boolean testKey() {
     Serial.println("HELLO ANTOINE");
     delay(MEDIUM);
   }
-  // Trevor's key
+  // Test if Trevor's key
   else if (KEY[0] == 10) {
     for (int j = 0; j < KEYLENGTH; j++) {
       if (TREVOR[j] == KEY[j]) { // compare key to valid key
@@ -444,6 +445,7 @@ int ballast() {
     if (LIMIT_NEAR || LIMIT_FAR) {
       Serial.println("LIMIT REACHED");
       MOTOR_SPEED = OFF;
+    }
     else {
       if (BALLAST_SPEED > 0) {
         MOTOR_SPEED = BALLAST_SPEED;
@@ -475,19 +477,19 @@ int steering() {
     // Until actuator is left of steering wheel, adjust right.
     if (ACTUATOR_POSITION < STEERING_POSITION) {
       while (ACTUATOR_POSITION < STEERING_POSITION) {
-        motors.setM1Speed(MEDIUM);
+        motors.setM1Speed(MODERATE);
         ACTUATOR_POSITION++;
         delay(SHORTEST);
-        INTERVAL = INTERVAL + SHORTEST;
+        INTERVAL = INTERVAL + SHORTEST; // increment time of interval
       }
     }
     // Until actuator is right of steering wheel, adjust left.
    else if (ACTUATOR_POSITION > STEERING_POSITION) {
       while (ACTUATOR_POSITION > STEERING_POSITION) {
-        motors.setM1Speed(-MEDIUM);
+        motors.setM1Speed(-MODERATE);
         ACTUATOR_POSITION--;
         delay(SHORTEST);
-        INTERVAL = INTERVAL + SHORTEST;
+        INTERVAL = INTERVAL + SHORTEST; // increment time of interval
       }
     }
     // Otherwise, disable actuator.
