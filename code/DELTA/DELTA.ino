@@ -116,10 +116,10 @@ void setup() {
   digitalWrite(LOCK_RIGHTBRAKE_PIN, HIGH);
   pinMode(IGNITION_PIN, INPUT);
   digitalWrite(IGNITION_PIN, HIGH);
-  pinMode(LIMIT_BALLAST_NEAR_PIN, INPUT);
-  digitalWrite(LIMIT_BALLAST_NEAR_PIN, HIGH);
-  pinMode(LIMIT_BALLAST_FAR_PIN, INPUT);
-  digitalWrite(LIMIT_BALLAST_FAR_PIN, HIGH);
+  pinMode(LIMIT_NEAR_PIN, INPUT);
+  digitalWrite(LIMIT_NEAR_PIN, HIGH);
+  pinMode(LIMIT_FAR_PIN, INPUT);
+  digitalWrite(LIMIT_FAR_PIN, HIGH);
   /* --- Initialize Analog Pins --- */
   pinMode(ACTUATOR_FAULT_PIN, INPUT); 
   pinMode(MOTOR_FAULT_PIN, INPUT);
@@ -217,6 +217,7 @@ void ignition() {
   digitalWrite(RELAY_2_PIN, LOW);
   digitalWrite(RELAY_3_PIN, LOW);
   Serial.println("IGNITION");
+  delay(SHORT);
   // While ignition button is enaged, attempt ignition.
   while (start() && nokill() && nolock()) {
     delay(SHORT);
@@ -250,7 +251,7 @@ void run() {
     SENSOR_WHEEL = 0;
     INTERVAL = 0; // milliseconds/interval
     delay(MEDIUM);
-    INTERVAL = INTERVAL + MEDIUM;
+    INTERVAL += MEDIUM;
     // Calculate rates
     RATE_FUEL = (SENSOR_FUEL * 1800) / INTERVAL; // convert pulses to Liters/Hr (1800 L*Hrs/pulse)
     RATE_ENGINE = (SENSOR_ENGINE * 60000) / INTERVAL; // convert pulses to RPM (60000 millisec/min)
@@ -311,7 +312,7 @@ boolean nokill() {
       digitalWrite(RELAY_3_PIN, HIGH);
       // Error message
       Serial.println("DRIVER NOT ON SEAT");
-      delay(SHORTER);
+      delay(SHORT);
       return false;
     }
     else {
@@ -435,8 +436,8 @@ boolean testKey() {
 int ballast() {
   // Get Ballast control input and well as far/near limit switches.
   BALLAST_SPEED = analogRead(BALLAST_SPEED_PIN);
-  LIMIT_NEAR = digitalRead(LIMIT_BALLAST_NEAR_PIN);
-  LIMIT_FAR = digitalRead(LIMIT_BALLAST_FAR_PIN);
+  LIMIT_NEAR = digitalRead(LIMIT_NEAR_PIN);
+  LIMIT_FAR = digitalRead(LIMIT_FAR_PIN);
   // If motor is stable, enable motor.
   //MOTOR_FAULT = digitalRead(MOTOR_FAULT_PIN);
   MOTOR_FAULT = 0;
@@ -480,7 +481,7 @@ int steering() {
         motors.setM1Speed(MODERATE);
         ACTUATOR_POSITION++;
         delay(SHORTEST);
-        INTERVAL = INTERVAL + SHORTEST; // increment time of interval
+        INTERVAL += SHORTEST; // increment time of interval
       }
     }
     // Until actuator is right of steering wheel, adjust left.
@@ -489,7 +490,7 @@ int steering() {
         motors.setM1Speed(-MODERATE);
         ACTUATOR_POSITION--;
         delay(SHORTEST);
-        INTERVAL = INTERVAL + SHORTEST; // increment time of interval
+        INTERVAL += SHORTEST; // increment time of interval
       }
     }
     // Otherwise, disable actuator.
