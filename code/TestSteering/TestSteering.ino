@@ -12,16 +12,18 @@
 /* --- Declarations --- */
 #define STEERING_A_PIN  18
 #define STEERING_B_PIN  19
-#define LIMIT_LEFT_PIN 32
-#define LIMIT_RIGHT_PIN 34
+#define LIMIT_FAR_POWER 34
+#define LIMIT_NEAR_PIN 35
+#define LIMIT_FAR_PIN 36
+#define LIMIT_FAR_PIN 37
 #define ACTUATOR_FAULT_PIN 6
 #define ACTUATOR_MEDIUM 50
 #define BAUD 9600
 DualVNH5019MotorShield motors; // M1 is steering actuator, M2 is ballast motor
 volatile int STEERING_POSITION = 0;
 volatile int ACTUATOR_POSITION = 0;
-int LIMIT_LEFT = LOW;
-int LIMIT_RIGHT = LOW;
+int LIMIT_FAR = LOW;
+int LIMIT_NEAR = LOW;
 int ACTUATOR_FAULT = 0;
 
 /* --- Setup --- */
@@ -30,8 +32,8 @@ void setup() {
   // Initialize I/O Pins
   pinMode(STEERING_A_PIN, INPUT); 
   pinMode(STEERING_B_PIN, INPUT);
-  pinMode(LIMIT_LEFT_PIN, INPUT);
-  pinMode(LIMIT_RIGHT_PIN, INPUT);
+  pinMode(LIMIT_NEAR_PIN, INPUT);
+  pinMode(LIMIT_FAR_PIN, INPUT);
   digitalWrite(STEERING_A_PIN, HIGH); // turn on pullup resistor
   digitalWrite(STEERING_B_PIN, HIGH); // turn on pullup resistor
 

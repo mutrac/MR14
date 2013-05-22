@@ -17,11 +17,14 @@
 #define HEIGHT 4
 
 /* Declarations */
-LiquidCrystal_I2C lcd(I2C_PORT,WIDTH,HEIGHT);  
+LiquidCrystal_I2C lcd(I2C_PORT,16,2);  
 
 void setup() {
   Serial.begin(9600);
   lcd.init(); // initialize the lcd 
+  lcd.blink();
+  lcd.noDisplay();
+  lcd.display();
   lcd.backlight();  // Backlight ON if under program control
   lcd.print("Begin testing:");
   delay(1000);   
@@ -30,26 +33,8 @@ void setup() {
 }
 
 void loop() {
-  for (int i = 0; i < 4; i++) {
-    lcd.setCursor(0,i); // print on each line
-    lcd.print("Test");
-    delay(1000);
-  }
-  lcd.clear();
-  delay(1000);
-  lcd.setCursor(0,0);
-  lcd.print("Test");
-  lcd.setCursor(0,1);
-  lcd.print("Test");
-  lcd.setCursor(0,2);
-  lcd.print("Test");
-  lcd.setCursor(0,3);
-  lcd.print("Test");
-  delay(1000);
-  lcd.clear();
-  for (int i = 0; i < 20; i++) {
-    lcd.print("Test");
-    delay(250);
-  }
+  lcd.init();
+  lcd.print("TEST");
+  delay(500);
   lcd.clear();
 }

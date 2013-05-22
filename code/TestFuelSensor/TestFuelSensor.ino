@@ -5,7 +5,7 @@
 
 /* --- Headers --- */
 #define BAUD 9600
-#define FUEL_PIN 26
+#define FUEL_PIN 3
 
 /* --- Declarations --- */
 volatile int NbTopsFan; //measuring the rising edges of the signal
@@ -15,7 +15,7 @@ int Calc;
 void setup() { 
   pinMode(FUEL_PIN, INPUT); //initializes digital pin 2 as an input
   Serial.begin(BAUD); //This is the setup function where the serial port is initialised,
-  attachInterrupt(0, rpm, RISING); //and the interrupt is attached
+  attachInterrupt(1, rpm, RISING); //and the interrupt is attached
 } 
 
 /* --- Loop --- */

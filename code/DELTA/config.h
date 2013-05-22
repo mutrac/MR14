@@ -58,14 +58,16 @@
 /* --- CONSTANTS --- */
 #define KEYLENGTH 4
 #define BAUD 9600
-#define SHORTEST 100
+#define LCD_WIDTH 20
+#define LCD_HEIGHT 4
+
+/* --- TIME --- */
+#define SHORTEST 2
 #define SHORTER 250
 #define SHORT 500
 #define MEDIUM 1000
 #define LONG 1500
 #define LONGER 2000
-#define LCD_WIDTH 20
-#define LCD_HEIGHT 4
 
 /* --- SERIAL COMMANDS --- */
 #define LCD_I2C_PORT 0x3F
@@ -74,8 +76,8 @@
 #define RFID_WRITE 0x04
 
 // MOTOR CONFIGURATIONS
-#define MOTOR_LOW 25
-#define MOTOR_MEDIUM 50
-#define MOTOR_HIGH 100
-#define ACTUATOR_LOW 25
-#define ACTUATOR_MEDIUM 50
+#define REVERSE -100
+#define OFF 0
+#define SLOW 50
+#define MEDIUM 100
+#define FAST 200
