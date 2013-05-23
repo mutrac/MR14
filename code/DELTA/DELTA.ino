@@ -94,32 +94,55 @@ void setup() {
   digitalWrite(RELAY_1_PIN, HIGH);
   digitalWrite(RELAY_2_PIN, HIGH);
   digitalWrite(RELAY_3_PIN, HIGH);
-  /* --- Power Pins --- */
+  /* --- Switches --- */
+  // Button
   pinMode(KILL_BUTTON_POWER, OUTPUT);
   digitalWrite(KILL_BUTTON_POWER, LOW);
-  pinMode(KILL_SEAT_POWER, OUTPUT);
-  digitalWrite(KILL_SEAT_POWER, LOW);
-  pinMode(KILL_HITCH_POWER, OUTPUT);
-  digitalWrite(KILL_HITCH_POWER, LOW);
-  pinMode(LOCK_LEFTBRAKE_POWER, OUTPUT);
-  digitalWrite(LOCK_LEFTBRAKE_POWER, LOW);
-  pinMode(LOCK_RIGHTBRAKE_POWER, OUTPUT);
-  digitalWrite(LOCK_RIGHTBRAKE_POWER, LOW);
-  pinMode(IGNITION_POWER, OUTPUT);
-  digitalWrite(IGNITION_POWER, LOW);
-  /* --- Input Pins --- */
   pinMode(KILL_BUTTON_PIN, INPUT);
   digitalWrite(KILL_BUTTON_PIN, HIGH);
+  
+  // Seat
+  pinMode(KILL_SEAT_POWER, OUTPUT);
+  digitalWrite(KILL_SEAT_POWER, LOW);
   pinMode(KILL_SEAT_PIN, INPUT);
+  digitalWrite(KILL_SEAT_PIN, HIGH);
+  
+  // Hitch
+  pinMode(KILL_HITCH_POWER, OUTPUT);
+  digitalWrite(KILL_HITCH_POWER, LOW);
+  pinMode(KILL_HITCH_PIN, INPUT);
+  digitalWrite(KILL_HITCH_PIN, HIGH);
+  
+  // Left Brake
+  pinMode(LOCK_LEFTBRAKE_POWER, OUTPUT);
+  digitalWrite(LOCK_LEFTBRAKE_POWER, LOW);
+  pinMode(LOCK_LEFTBRAKE_PIN, INPUT);
   digitalWrite(LOCK_LEFTBRAKE_PIN, HIGH);
+  
+  // Right Brake
+  pinMode(LOCK_RIGHTBRAKE_POWER, OUTPUT);
+  digitalWrite(LOCK_RIGHTBRAKE_POWER, LOW);
   pinMode(LOCK_RIGHTBRAKE_PIN, INPUT);
   digitalWrite(LOCK_RIGHTBRAKE_PIN, HIGH);
+  
+  // Ignition
+  pinMode(IGNITION_POWER, OUTPUT);
+  digitalWrite(IGNITION_POWER, LOW);
   pinMode(IGNITION_PIN, INPUT);
   digitalWrite(IGNITION_PIN, HIGH);
+  
+  // Near Limit
+  pinMode(LIMIT_NEAR_POWER, OUTPUT);
+  digitalWrite(LIMIT_NEAR_POWER, LOW);
   pinMode(LIMIT_NEAR_PIN, INPUT);
   digitalWrite(LIMIT_NEAR_PIN, HIGH);
+  
+  // Far Limit
+  pinMode(LIMIT_FAR_POWER, OUTPUT);
+  digitalWrite(LIMIT_FAR_POWER, LOW);
   pinMode(LIMIT_FAR_PIN, INPUT);
   digitalWrite(LIMIT_FAR_PIN, HIGH);
+  
   /* --- Initialize Analog Pins --- */
   pinMode(ACTUATOR_FAULT_PIN, INPUT); 
   pinMode(MOTOR_FAULT_PIN, INPUT);
@@ -171,7 +194,7 @@ void on() {
   while (nokill()) {
     // Display prompt message then test RFID serial.
     Serial.println("SWIPE KEY CARD");
-    delay(SHORT);
+    delay(SHORTER);
     Serial2.write(0x02);
     delay(SHORT);
     if (Serial2.available()) {
@@ -191,20 +214,17 @@ void on() {
 /* --- Standby --- */
 // ON() && TESTKEY() && KILL() --> STANDY()
 void standby() {
-  // If no Kills enabled, allow partial standby.
+  //  If no Locks or kills enabled, allow full standby.
   while (nokill()) {
-    //  If no Locks or kills enabled, allow full standby.
-    while (nolock() && nokill()) {
-      // Enable Regulator and Fuel Solenoid and display STANDY message.
-      digitalWrite(RELAY_1_PIN, LOW);
-      digitalWrite(RELAY_2_PIN, LOW);
-      digitalWrite(RELAY_3_PIN, HIGH);
-      Serial.println("STANDBY");
-      delay(SHORT);
-      if (start()) { // activate ignition if start button engaged
-        ignition();
-        run();
-      }
+    // Enable Regulator and Fuel Solenoid and display STANDY message.
+    Serial.println("STANDBY");
+    digitalWrite(RELAY_1_PIN, LOW);
+    digitalWrite(RELAY_2_PIN, LOW);
+    digitalWrite(RELAY_3_PIN, HIGH);
+    delay(SHORT);
+    if (start() && nolock()) { // activate ignition if start button engaged
+      ignition();
+      run();
     }
   }
 }
@@ -217,10 +237,9 @@ void ignition() {
   digitalWrite(RELAY_2_PIN, LOW);
   digitalWrite(RELAY_3_PIN, LOW);
   Serial.println("IGNITION");
-  delay(SHORT);
   // While ignition button is enaged, attempt ignition.
-  while (start() && nokill() && nolock()) {
-    delay(SHORT);
+  while (start() && nolock() && nokill()) {
+    Serial.println("IGNITION");
   }
 }
 
@@ -427,6 +446,10 @@ boolean testKey() {
   else {
     return false;
   }
+  // Clear Key
+  for (int i = 0; i < KEYLENGTH; i++) {
+    KEY[i] = 0;
+  }
   // If key passed, return true
   return true;
 }
@@ -454,8 +477,6 @@ int ballast() {
       else {
         MOTOR_SPEED = REVERSE;
       }
-      Serial.println("LIMIT REACHED");
-      MOTOR_SPEED = OFF;
     }
   }
   // If motor fault, disable motor.
