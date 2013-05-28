@@ -34,6 +34,7 @@ void loop() {
   else {
     Serial.println("SWIPE KEY CARD");
   }
+  
   delay(INTERVAL); // check for card every on interval
 }
 

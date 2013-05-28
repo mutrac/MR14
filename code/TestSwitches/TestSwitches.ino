@@ -19,6 +19,8 @@
 #define LIMIT_NEAR_PIN 35
 #define LIMIT_FAR_POWER 36
 #define LIMIT_FAR_PIN 37
+#define INDUCTOR_POWER 38
+#define INDUCTOR_PIN 39
 
 // 
 int KILL_HITCH = 0;
@@ -29,6 +31,7 @@ int LOCK_RIGHTBRAKE = 0;
 int LIMIT_FAR = 0;
 int LIMIT_NEAR = 0;
 int IGNITION = 0;
+int INDUCTOR = 0;
 
 void setup() {
   /* --- Switches --- */
@@ -80,6 +83,12 @@ void setup() {
   pinMode(LIMIT_FAR_PIN, INPUT);
   digitalWrite(LIMIT_FAR_PIN, HIGH);
   
+  // Inductor
+  pinMode(INDUCTOR_POWER, OUTPUT);
+  digitalWrite(INDUCTOR_POWER, LOW);
+  pinMode(INDUCTOR_PIN, INPUT);
+  digitalWrite(INDUCTOR_PIN, HIGH);
+  
   Serial.begin(9600);
 }
 
@@ -94,6 +103,7 @@ void loop() {
   LIMIT_NEAR = digitalRead(LIMIT_NEAR_PIN);
   LIMIT_FAR = digitalRead(LIMIT_FAR_PIN);
   IGNITION = digitalRead(IGNITION_PIN);
+  INDUCTOR = digitalRead(INDUCTOR_PIN);
   
   // Display values
   Serial.println("---------------------");
@@ -113,6 +123,8 @@ void loop() {
   Serial.println(LIMIT_NEAR);
   Serial.print("Far Limit: ");
   Serial.println(LIMIT_FAR);
+  Serial.print("Inductor: ");
+  Serial.println(INDUCTOR);
   
   // Wait
   delay(1000);

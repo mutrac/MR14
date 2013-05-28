@@ -2,7 +2,7 @@
   MR14 GAMMA
   Organization: MuTrac (McGill ASABE Tractor Pull Team), McGill University
   Author: Trevor Stanhope
-  Date: 2013-05-04
+  Date: 2013-05-28
   Summary: Beta Project for MR14
   - STEERING
   - NO LCD
@@ -29,10 +29,12 @@
 #include <SoftwareSerial.h> // needed for RFID module.
 #include "config.h" // needed for pin setup and global values
 #include <DualVNH5019MotorShield.h> // needed for motors
+#include "stdio.h"
 
 /* --- Declarations --- */
 // Spawn serial communication objects.
 DualVNH5019MotorShield motors; // M1 is steering actuator, M2 is ballast motor
+
 // Create switch booleans (Locks, Kills, Triggers and Limits).
 int KILL_HITCH = 0;
 int KILL_BUTTON = 0;
@@ -42,37 +44,41 @@ int LOCK_RIGHTBRAKE = 0;
 int LOCK_CVT = 0;
 int LIMIT_FAR = 0;
 int LIMIT_NEAR = 0;
+int LIMIT_STEERING = 0;
 int IGNITION = 0;
+
 // Create ballast and steering values.
 int BALLAST_SPEED = 0;
-int MOTOR_SPEED = 0;
-int ACTUATOR_SPEED = 0;
 volatile int STEERING_POSITION = 0;
 volatile int ACTUATOR_POSITION = 0;
 int ACTUATOR_FAULT = 0;
 int MOTOR_FAULT = 0;
+
 // Create sensor reading values and motor fault booleans.
-volatile unsigned int SENSOR_FUEL = 0;
-volatile unsigned int SENSOR_ENGINE = 0;
-volatile unsigned int SENSOR_WHEEL = 0;
-// Character strings.
+volatile int SENSOR_FUEL = 0;
+volatile int SENSOR_ENGINE = 0;
+volatile int SENSOR_WHEEL = 0;
+
+// Calculate values
 char RATE_FUEL[CHARS];
-char RATE_ENGINE[CHARS];
-char RATE_WHEEL[CHARS];
-// Create character buffers for LCD.
-char BUFFER_FUEL[128];
-char BUFFER_WHEEL[128];
-char BUFFER_ENGINE[128];
-char BUFFER_BALLAST[128];
-char BUFFER_STEERING[128];
-char BUFFER_ACTUATOR[128];
+char PERCENTAGE_LOAD[CHARS]; // char because can't print float
+int RATE_ENGINE = 0;
+int RATE_WHEEL = 0;
+
+// Character buffers.
+char BUFFER_FUEL[MAX];
+char BUFFER_LOAD[MAX];
+char BUFFER_WHEEL[MAX];
+char BUFFER_ENGINE[MAX];
+
 // List of valid RFID keys.
 int ANTOINE[] = {139, 151, 226, 117};
 int TREVOR[] = {10, 227, 165, 221};
+
 // Create time interval.
-volatile unsigned int INTERVAL = 0;
-volatile unsigned int INTERVAL_START = 0;
-volatile unsigned int INTERVAL_END = 0;
+int INTERVAL = 0;
+int INTERVAL_START = 0;
+int INTERVAL_END = 0;
 
 /* --- Setup --- */
 // Begin MR14 initialization actions.
@@ -139,6 +145,11 @@ void setup() {
   digitalWrite(LIMIT_FAR_POWER, LOW);
   pinMode(LIMIT_FAR_PIN, INPUT);
   digitalWrite(LIMIT_FAR_PIN, HIGH);
+  // Steering Limit
+  pinMode(LIMIT_STEERING_POWER, OUTPUT);
+  digitalWrite(LIMIT_STEERING_POWER, LOW);
+  pinMode(LIMIT_STEERING_PIN, INPUT);
+  digitalWrite(LIMIT_STEERING_PIN, HIGH);
   
   /* --- Initialize Analog Pins --- */
   pinMode(ACTUATOR_FAULT_PIN, INPUT); 
@@ -164,10 +175,13 @@ void setup() {
 /*********** LOOP ***********/
 /* --- Loop --- */
 void loop() {
+  
   // Attempt to enter ON mode.
   on();
+  
   // Disable all tractor functions then wait for reboot.
   restart();
+  
 }
 /*********** STATES ***********/
 /*
@@ -182,8 +196,10 @@ void loop() {
 // LOOP() --> ON()
 // Tractor is on and scans continously for key.
 void on() {
+  
   // Display ON message.
   clear(); Serial3.print("ON"); delay(MEDIUM); clear(); Serial.println("ON");
+  
   //  While no Kills, contine to prompt for RFID key.
   while (nokill()) {
     // Display prompt message then test RFID serial.
@@ -207,14 +223,15 @@ void on() {
 /* --- Standby --- */
 // ON() && TESTKEY() && KILL() --> STANDY()
 void standby() {
+  
   //  If no Locks or kills enabled, allow full standby.
   while (nolock() && nokill()) {
     clear(); Serial3.print("STANDBY"); delay(MEDIUM); clear(); Serial.println("STANDBY");
     digitalWrite(RELAY_1_PIN, LOW);
     digitalWrite(RELAY_2_PIN, LOW);
     digitalWrite(RELAY_3_PIN, HIGH);
-    
-    // activate ignition if start button engaged
+  
+    // Activate ignition if button is pressed.
     if (start()) {
       ignition();
       run();
@@ -240,6 +257,7 @@ void ignition() {
 /* --- Run --- */
 // STANDBY() && START() && KILL() && LOCK() --> RUN()
 void run() {
+  
   // Enable engine RUN mode
   digitalWrite(RELAY_1_PIN, LOW);
   digitalWrite(RELAY_2_PIN, LOW);
@@ -266,53 +284,32 @@ void run() {
     SENSOR_WHEEL = 0;
     
     // Active interval
-    interrupts();
     INTERVAL_START = millis(); // milliseconds/interval
     // Interval 1
     steering();
     delay(SHORTER);
-    if (nokill()) {
-      continue;
-    }
-    else {
-      break; // break from operating loop if kill switch engaged
+    if (!nokill()) {
+      break;
     }
     // Interval 2
     steering();
     delay(SHORTER);
-    if (nokill()) {
-      continue;
-    }
-    else {
-      break; // break from operating loop if kill switch engaged
+    if (!nokill()) {
+      break;
     }
     // Interval 3
     steering();
     delay(SHORTER);
-    if (nokill()) {
-      continue;
+    if (!nokill()) {
+      break;
     }
-    else {
-      break; // break from operating loop if kill switch engaged
-    }
-    steering();
     // Interval 4
     steering();
     delay(SHORTER);
-    if (nokill()) {
-      continue;
+    if (!nokill()) {
+      break;
     }
-    else {
-      break; // break from operating loop if kill switch engaged
-    }
-    noInterrupts();
     INTERVAL_END = millis();
-    
-    // Calculate rates
-    INTERVAL = INTERVAL_END - INTERVAL_START;
-    dtostrf(LPH(), DIGITS, PRECISION, RATE_FUEL);
-    dtostrf(engineRPM(), DIGITS, PRECISION, RATE_ENGINE);
-    dtostrf(wheelRPM(), DIGITS, PRECISION, RATE_WHEEL);
     
     // Display to serial.
     Serial.println(INTERVAL);
@@ -320,12 +317,21 @@ void run() {
     Serial.println(SENSOR_ENGINE);
     Serial.println(SENSOR_WHEEL);
     
+    // Calculate rates
+    INTERVAL = INTERVAL_END - INTERVAL_START;
+    dtostrf(LPH(), 3, 1, RATE_FUEL);
+    dtostrf(Load(), 3, 1, PERCENTAGE_LOAD);
+    RATE_ENGINE = engineRPM();
+    RATE_WHEEL = wheelRPM();
+    
     // Package sensor readings as character buffers, then display them.
     sprintf(BUFFER_FUEL, "FUEL (L/H): %s", RATE_FUEL);
-    sprintf(BUFFER_ENGINE, "ENGINE (RPM): %s", RATE_ENGINE);
-    sprintf(BUFFER_WHEEL, "WHEEL (RPM): %s", RATE_WHEEL);
+    sprintf(BUFFER_LOAD, "LOAD (%%): %s", PERCENTAGE_LOAD);
+    sprintf(BUFFER_ENGINE, "ENGINE (RPM): %d", RATE_ENGINE);
+    sprintf(BUFFER_WHEEL, "WHEEL (RPM): %d", RATE_WHEEL);
     clear();
-    Serial3.print(BUFFER_FUEL); newline(); Serial.println(RATE_FUEL); 
+    Serial3.print(BUFFER_FUEL); newline(); Serial.println(RATE_FUEL);
+    Serial3.print(BUFFER_LOAD); newline(); Serial.println(PERCENTAGE_LOAD);
     Serial3.print(BUFFER_ENGINE); newline(); Serial.println(RATE_ENGINE);
     Serial3.print(BUFFER_WHEEL); newline(); Serial.println(RATE_WHEEL);
   }
@@ -334,6 +340,7 @@ void run() {
 /* --- Restart --- */
 // LOOP() --> OFF()
 void restart() {
+  
   // Engine Position 1
   digitalWrite(RELAY_1_PIN, HIGH); Serial.print(1);
   digitalWrite(RELAY_2_PIN, HIGH); Serial.print(1);
@@ -342,6 +349,7 @@ void restart() {
   // Display OFF message
   Serial.println("RESTARTING");
   Serial3.print("RESTARTING..."); delay(MEDIUM); clear();
+  
 }
 
 /*********** FUNCTIONS ***********/
@@ -357,10 +365,12 @@ void restart() {
 /* --- Kill Switches --- */
 // Tractor will not operate if any of the killswitches are engaged
 boolean nokill() {
+  
   // Get kill switch states
   KILL_SEAT = digitalRead(KILL_SEAT_PIN);
   KILL_BUTTON = digitalRead(KILL_BUTTON_PIN);
   KILL_HITCH = digitalRead(KILL_HITCH_PIN);
+  
   // If driver is off of seat
   if (KILL_SEAT) {
     delay(SHORT);
@@ -378,6 +388,7 @@ boolean nokill() {
       clear(); tone(220, 100); Serial3.print("DRIVER NOT ON SEAT"); delay(LONGER); clear();
     }
   }
+  
   // If hitch is removed
   if (KILL_HITCH) {
     // Engine Position 1
@@ -391,6 +402,7 @@ boolean nokill() {
     Serial.println("HITCH DETACHED");
     clear(); tone(220, 100); Serial3.print("HITCH DETACHED"); delay(LONGER); clear();
   }
+  
   // If Kill button is pressed
   if (KILL_BUTTON) {
      // Engine Position 1
@@ -405,6 +417,7 @@ boolean nokill() {
     clear(); tone(220, 100); Serial3.print("KILL BUTTON PRESSED"); delay(LONGER); clear();
   }
   
+  // Return kill state
   if (KILL_SEAT || KILL_BUTTON || KILL_HITCH) {
     return false;
   }
@@ -416,16 +429,19 @@ boolean nokill() {
 /* --- Lock Switches --- */
 // MR14 will not allow ignition if any of the locks are engaged
 boolean nolock() {
+  
   // get interlock states.
   LOCK_LEFTBRAKE = digitalRead(LOCK_LEFTBRAKE_PIN);
   LOCK_RIGHTBRAKE = digitalRead(LOCK_RIGHTBRAKE_PIN);
   LOCK_CVT = analogRead(LOCK_CVT_PIN);
   
-  // If brakes are not pressed
+  // If left brake is not pressed
   if (LOCK_LEFTBRAKE) {
     Serial.println("ENGAGE LEFT BRAKE");
     Serial3.print("ENGAGE LEFT BRAKE"); delay(SHORT); clear();
   }
+  
+  // If right brake is not pressed
   if (LOCK_RIGHTBRAKE) {
     Serial.println("ENGAGE RIGHT BRAKE");
     Serial3.print("ENGAGE RIGHT BRAKE"); delay(SHORT); clear();
@@ -437,7 +453,7 @@ boolean nolock() {
     Serial3.print("CVT GUARD OFF"); delay(SHORT); clear();
   }
   
-  // Return value.
+  // Return lock state.
   if ((LOCK_CVT > 10) || LOCK_LEFTBRAKE || LOCK_RIGHTBRAKE) {
     return false;
   }
@@ -502,75 +518,79 @@ boolean testKey() {
 /* --- Ballast --- */
 // 5V --> POTENTIOMETER --> (GND || BALLAST_SPEED_PIN)
 int ballast() {
+  
   // Get Ballast control input and well as far/near limit switches.
   BALLAST_SPEED = analogRead(BALLAST_SPEED_PIN);
   LIMIT_NEAR = digitalRead(LIMIT_NEAR_PIN);
   LIMIT_FAR = digitalRead(LIMIT_FAR_PIN);
   
-  // If motor is stable, enable motor.
-  MOTOR_FAULT = 0; //MOTOR_FAULT = digitalRead(MOTOR_FAULT_PIN);
-  if (!MOTOR_FAULT) {
-    // If limits are not engaged, set the proper motor speed.
-    if (LIMIT_NEAR || LIMIT_FAR) {
-      motors.setM2Speed(OFF);
-      Serial.println("LIMIT REACHED");
-      tone(220, 100); Serial3.print("LIMIT REACHED"); delay(SHORT); clear();
-    }
-    else {
-      if (BALLAST_SPEED > 0) {
-        motors.setM2Speed(BALLAST_SPEED/4);
+  // If limits are engaged, disable the DBS motor.
+  if (LIMIT_NEAR || LIMIT_FAR) {
+    motors.setM2Speed(OFF);
+    Serial.println("BALLAST LIMIT");
+    tone(220, 100); Serial3.print("BALLAST LIMIT"); delay(SHORT); clear();
+  }
+  
+  // If limits are not engaged, activate motor.
+  else {
+    if (BALLAST_SPEED > 0) {
+      if (BALLAST_SPEED < 100) {
+        motors.setM2Speed(OFF); // no speed at first
       }
       else {
-        motors.setM2Speed(REVERSE);
+        motors.setM2Speed((BALLAST_SPEED*400)/1023); // from 0 to 400
       }
     }
+    else {
+      motors.setM2Speed(REVERSE);
+    }
   }
-  // If motor fault, disable motor.
-  else {
-    motors.setM2Speed(OFF);
-    Serial.println("MOTOR FAULT");
-    tone(220, 100); Serial3.print("MOTOR FAULT"); delay(SHORT); clear();
-  }
+  
   // Set motor and return values.
   return BALLAST_SPEED;
 }
 
 /* --- Steering --- */
 int steering() {
-  // Get actuator fault reading.
-  //ACTUATOR_FAULT = digitalRead(ACTUATOR_FAULT_PIN);
-  ACTUATOR_FAULT = 0;
-  // If actuator is stable, enable actuator.
-  if (!ACTUATOR_FAULT) {
+  
+  // Get steering limit
+  LIMIT_STEERING = digitalRead(LIMIT_STEERING_PIN);
+
+  // If at steering limit, disable actuator.
+  if (LIMIT_STEERING) {
+    motors.setM1Speed(OFF);
+    Serial.println("STEERING LIMIT");
+    Serial3.print("STEERING LIMIT"); delay(SHORT); clear();
+  }
+  
+  // Otherwise, enable actuator.
+  else {
     // Until actuator is left of steering wheel, adjust right.
     if (ACTUATOR_POSITION < STEERING_POSITION) {
       while (ACTUATOR_POSITION < STEERING_POSITION) {
-        motors.setM1Speed(MODERATE);
+        motors.setM1Speed(ACTUATOR_SPEED);
         ACTUATOR_POSITION++;
         delay(SHORTEST);
       }
     }
+    
     // Until actuator is right of steering wheel, adjust left.
-   else if (ACTUATOR_POSITION > STEERING_POSITION) {
+    else if (ACTUATOR_POSITION > STEERING_POSITION) {
       while (ACTUATOR_POSITION > STEERING_POSITION) {
-        motors.setM1Speed(-MODERATE);
+        motors.setM1Speed(-ACTUATOR_SPEED);
         ACTUATOR_POSITION--;
         delay(SHORTEST);
       }
     }
-    // Otherwise, disable actuator.
+      
+    // After actuator is adjusted, disable it.
     else {
-      motors.setM1Speed(OFF);
+        motors.setM1Speed(OFF);
     }
   }
-  // Otherwise, disable actuator;
-  else {
-    motors.setM1Speed(OFF);
-    Serial.println("ACTUATOR FAULT");
-    Serial3.print("ACTUATOR FAULT"); delay(SHORT); clear();
-  }
+  
   // Return value.
-  return STEERING_POSITION;
+  return ACTUATOR_POSITION;
 }
 
 /*********** INTERRUPTS ***********/
@@ -608,6 +628,9 @@ void encoder() {
 }
 
 /*********** LCD ***********/
+/*
+  Void functions that are called frequently to adjust the LCD.
+*/
 void clear() {
   Serial3.write(12);
 }
@@ -654,14 +677,20 @@ float LPH() {
   return val;
 }
 
-float engineRPM() {
-  float val = 0;
+int engineRPM() {
+  int val = 0;
   val = (SENSOR_ENGINE * 60000) / INTERVAL; // converts pulses to RPM (60000 millisec/min)
   return val;
 }
 
-float wheelRPM() {
-  float val = 0;
+int wheelRPM() {
+  int val = 0;
   val = (SENSOR_WHEEL * 60000) / INTERVAL; // converts pulses to RPM (60000 millisec/min)
+  return val;
+}
+
+float Load() {
+  float val = 0;
+  val = ((SENSOR_FUEL * 25380) / INTERVAL); // convert pulses to Liters/Hr (1800 L*Hrs/pulse)
   return val;
 }

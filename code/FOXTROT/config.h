@@ -1,7 +1,7 @@
 /*
   config.h
   Author: Trevor Stanhope
-  Date: 2013-05-14
+  Date: 2013-05-28
   Summary: Configuration Library for MR14
 */
 
@@ -39,9 +39,11 @@
 #define LIMIT_NEAR_PIN 35
 #define LIMIT_FAR_POWER 36
 #define LIMIT_FAR_PIN 37
+#define LIMIT_STEERING_POWER 38
+#define LIMIT_STEERING_PIN 39
 
 // DIGITAL 2: ENGINE RELAYS
-#define RELAY_1_PIN 39 // pin to disable ENGINE STOP
+#define RELAY_1_PIN 41 // pin to disable ENGINE STOP
 #define RELAY_2_PIN 43 // pin to enable REGULATION AND FUEL SOLENOID
 #define RELAY_3_PIN 45 // pin to enable STARTER
 
@@ -58,12 +60,11 @@
 #define BAUD 9600
 #define LCD_WIDTH 20
 #define LCD_HEIGHT 4
-#define PRECISION 2
-#define DIGITS 4
-#define CHARS 8
+#define CHARS 4
+#define MAX 20
 
 /* --- TIME --- */
-#define SHORTEST 2
+#define SHORTEST 1
 #define SHORTER 250
 #define SHORT 500
 #define MEDIUM 1000
@@ -77,8 +78,8 @@
 #define RFID_WRITE 0x04
 
 // MOTOR CONFIGURATIONS
-#define REVERSE -100
+#define REVERSE -400
 #define OFF 0
-#define SLOW 50
-#define MODERATE 100
-#define FAST 200
+#define SLOW 100
+#define MODERATE 200
+#define ACTUATOR_SPEED 300
