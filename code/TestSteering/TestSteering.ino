@@ -11,19 +11,20 @@
 
 /* --- Declarations --- */
 #define SHORTER 250
-#define STEERING_A_PIN  18
-#define STEERING_B_PIN  19
-#define ACTUATOR_FAULT_PIN 6
-#define ACTUATOR_MEDIUM 400
+#define STEERING_A_PIN  19
+#define STEERING_B_PIN  20
 #define BAUD 9600
+#define OFF 0
+#define SHORTEST 1
+#define ACTUATOR_SPEED 300
+#define THRESHOLD 27000
+#define SENSITIVITY 15
 DualVNH5019MotorShield motors; // M1 is steering actuator, M2 is ballast motor
 volatile int STEERING_POSITION = 0;
 volatile int ACTUATOR_POSITION = 0;
-int ACTUATOR_FAULT = 0;
 
 /* --- Setup --- */
 void setup() { 
-  
   // Steering
   pinMode(STEERING_A_PIN, INPUT); 
   pinMode(STEERING_B_PIN, INPUT);
@@ -65,42 +66,57 @@ void loop(){
     if (!nokill()) {
       break;
     }
+    Serial.println(ACTUATOR_POSITION);
+    Serial.println(STEERING_POSITION);
   }
 }
 
 /* --- Steering --- */
 void steering() {
-  
-  // Get actuator fault reading.
-  //ACTUATOR_FAULT = digitalRead(ACTUATOR_FAULT_PIN);
-  ACTUATOR_FAULT = 0;
-  Serial.println(STEERING_POSITION);
-  Serial.println(ACTUATOR_POSITION);
-  
-  // If actuator is stable, enable actuator.
-  if (!ACTUATOR_FAULT) {
-    
-    // Until actuator is left of steering wheel, adjust right.
-    while (ACTUATOR_POSITION < STEERING_POSITION) {
-      motors.setM2Speed(400);
-      ACTUATOR_POSITION++;
-      delay(1);
+  // Until actuator is left of steering wheel, adjust right.
+  if (ACTUATOR_POSITION > STEERING_POSITION/SENSITIVITY) {
+    while (ACTUATOR_POSITION > STEERING_POSITION/SENSITIVITY) {
+      motors.setM1Speed(ACTUATOR_SPEED);
+      delay(SHORTEST);
+      Serial.println("LEFT");
+      Serial.print("mA: ");
+      Serial.println(motors.getM1CurrentMilliamps());
+      if (motors.getM1CurrentMilliamps() > THRESHOLD) {
+        Serial.println("OFF");
+        motors.setM1Speed(OFF);
+        ACTUATOR_POSITION = STEERING_POSITION/SENSITIVITY;  
+      }
+      else {
+        ACTUATOR_POSITION--;
+      }
     }
-    
-    // Until actuator is right of steering wheel, adjust left.
-    while (ACTUATOR_POSITION > STEERING_POSITION) {
-      motors.setM2Speed(-400);
-      ACTUATOR_POSITION--;
-      delay(1);
-    }
-    
-    motors.setM2Speed(0);
   }
   
-  // Otherwise, disable motor;
+  // Until actuator at position of steering wheel, adjust left.
+  else if (ACTUATOR_POSITION < STEERING_POSITION/SENSITIVITY) {
+    while (ACTUATOR_POSITION < STEERING_POSITION/SENSITIVITY) {
+      motors.setM1Speed(-ACTUATOR_SPEED);
+      delay(SHORTEST);
+      Serial.println("RIGHT");
+      Serial.println("mA: ");
+      Serial.println(motors.getM1CurrentMilliamps());
+      if (motors.getM1CurrentMilliamps() > THRESHOLD) {
+        Serial.println("OFF");
+        motors.setM1Speed(OFF);
+        ACTUATOR_POSITION = STEERING_POSITION/SENSITIVITY;
+      }
+      else {
+        ACTUATOR_POSITION++;
+      }
+    }
+  }
+    
+  // After actuator is adjusted, disable it.
   else {
-    motors.setM2Speed(0);
-    Serial.println("AT LIMIT");
+      motors.setM1Speed(OFF);
+      Serial.println("AT POSITION");
+      Serial.print("mA: ");
+      Serial.println(motors.getM1CurrentMilliamps());
   }
 }
 
