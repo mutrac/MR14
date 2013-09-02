@@ -3,31 +3,24 @@
   Author: Trevor Stanhope
   Date: 2013-05-29
   Summary: Configuration Library for MR14
-  0 --> 2
-  1 --> 3
-  2 --> 21
-  3 --> 20
-  4 --> 19
-  5 --> 18
 */
 
 /*********** INPUT/OUTPUT ***********/
 /* --- PWM PINS --- */
 // PWM 1: SENSORS
 #define SENSOR_FUEL_PIN 3
-#define SENSOR_FUEL_INT 1
+#define SENSOR_FUEL_INTERRUPT 1
+#define SENSOR_ENGINE_PIN 5
+#define SENSOR_ENGINE_INTERRUPT 2
 #define SENSOR_WHEEL_PIN 18
-#define SENSOR_WHEEL_INT 5
-#define SENSOR_ENGINE_PIN 21
-#define SENSOR_ENGINE_INT 2
+#define SENSOR_WHEEL_INTERRUPT 4
 
 /* --- COMMUNICATION PINS --- */
-// COMMUNICATION 1: RFID, STEERING AND LCD
+// COMMUNICATION 1: RFID STEERING AND LCD
 #define RFID_TX_PIN 16 // Serial2 TX
 #define RFID_RX_PIN 17 // Serial2 RX
 #define STEERING_A_PIN 19
 #define STEERING_B_PIN 20
-#define STEERING_INT 4
 
 /* --- START DIGITAL PINS --- */
 // DIGITAL 1: KILL, TRIGGER AND LOCK SWITCHES
@@ -67,24 +60,15 @@
 #define CHARS 4
 #define MAX 20
 #define SENSITIVITY 15
-#define THRESHOLD 30000
-#define BALLAST_THRESHOLD 25000
-#define RATIO 4
-
-/* --- CONVERSIONS --- */
-#define CONVERT_WHEEL 15
-#define CONVERT_LOAD 180.198
-#define CONVERT_ENGINE 60
-#define CONVERT_FUEL 25.380
+#define THRESHOLD 27000
 
 /* --- TIME --- */
-#define SHORTEST 40
-#define SHORTER 125
+#define SHORTEST 1
+#define SHORTER 250
 #define SHORT 500
 #define MEDIUM 1000
 #define LONG 2000
-#define LONGER 4000
-#define INTERVAL 1000
+#define LONGER 5000
 
 /* --- SERIAL COMMANDS --- */
 #define LCD_I2C_PORT 0x3F
@@ -93,6 +77,8 @@
 #define RFID_WRITE 0x04
 
 // MOTOR CONFIGURATIONS
-#define REVERSE -150
+#define REVERSE 400
 #define OFF 0
-#define ACTUATOR_SPEED 350
+#define SLOW 100
+#define MODERATE 200
+#define ACTUATOR_SPEED 300
